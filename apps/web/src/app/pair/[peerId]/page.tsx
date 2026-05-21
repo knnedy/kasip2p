@@ -65,7 +65,7 @@ export default function PairPage() {
   const targetPeer = peers.find((p) => p.meta.peerId === targetId);
 
   const [pin] = useState<string>(() => generatePin());
-  const [pairingState, setPairingState] = useState<PairingState>("idle");
+  const [pairingState, setPairingState] = useState<PairingState>("waiting");
   const [enteredPin, setEnteredPin] = useState<string>("");
   const [pinError, setPinError] = useState<boolean>(false);
   const pinInputRef = useRef<HTMLInputElement>(null);
@@ -87,8 +87,6 @@ export default function PairPage() {
       targetId,
       pin,
     });
-
-    setPairingState("waiting");
 
     const cleanup = signalingClient.onMessage((msg) => {
       if (msg.type === "pair-accept" && msg.fromId === targetId) {
