@@ -1,4 +1,4 @@
-import type { SignalMessage } from "@kasip2p/shared";
+import type { SignalMessage, PeerMeta, OS, DeviceType } from "@kasip2p/shared";
 
 type MessageHandler = (msg: SignalMessage) => void;
 
@@ -8,7 +8,7 @@ class SignalingClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   connect(peerId: string) {
-    const url = process.env.NEXT_PUBLIC_SIGNAL_URL;
+    const url = process.env.NEXT_PUBLIC_SIGNAL_URL ?? "ws://localhost:3001";
     this.socket = new WebSocket(`${url}/ws`);
 
     this.socket.onopen = () => {
@@ -25,7 +25,6 @@ class SignalingClient {
     };
 
     this.socket.onclose = () => {
-      // attempt reconnect after 3s if connection drops
       this.reconnectTimer = setTimeout(() => this.connect(peerId), 3000);
     };
   }
@@ -38,7 +37,9 @@ class SignalingClient {
 
   onMessage(handler: MessageHandler) {
     this.handlers.add(handler);
-    return () => this.handlers.delete(handler); // returns cleanup function
+    return () => {
+      this.handlers.delete(handler);
+    };
   }
 
   disconnect() {
@@ -48,9 +49,10 @@ class SignalingClient {
   }
 }
 
-function getDeviceMeta(peerId: string) {
+function getDeviceMeta(peerId: string): PeerMeta {
   const ua = navigator.userAgent;
-  const os = /Android/i.test(ua)
+
+  const os: OS = /Android/i.test(ua)
     ? "android"
     : /iPhone|iPad/i.test(ua)
       ? "ios"
@@ -62,7 +64,7 @@ function getDeviceMeta(peerId: string) {
             ? "linux"
             : "unknown";
 
-  const deviceType = /Mobi|Android/i.test(ua)
+  const deviceType: DeviceType = /Mobi|Android/i.test(ua)
     ? "mobile"
     : /Tablet|iPad/i.test(ua)
       ? "tablet"
@@ -70,10 +72,10 @@ function getDeviceMeta(peerId: string) {
 
   return {
     peerId,
-    name: `${navigator.platform} — ${navigator.appCodeName}`,
+    name: `${navigator.platform}`,
     os,
     deviceType,
-  } as const;
+  };
 }
 
 export const signalingClient = new SignalingClient();
