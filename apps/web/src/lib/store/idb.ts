@@ -1,15 +1,20 @@
-import { get, set, del, entries } from "idb-keyval";
+import { set, del, entries, clear } from "idb-keyval";
 import type { TransferRecord } from "@kasip2p/shared";
 
-export async function saveTransfer(record: TransferRecord) {
-  await set(record.id, record);
+export async function saveTransfer(record: TransferRecord, blob?: Blob) {
+  await set(record.id, { record, blob });
 }
 
-export async function getTransfers(): Promise<TransferRecord[]> {
-  const all = await entries<string, TransferRecord>();
+export async function getTransfers(): Promise<
+  { record: TransferRecord; downloadUrl?: string }[]
+> {
+  const all = await entries<string, { record: TransferRecord; blob?: Blob }>();
   return all
-    .map(([, value]) => value)
-    .sort((a, b) => b.completedAt - a.completedAt);
+    .map(([, value]) => ({
+      record: value.record,
+      downloadUrl: value.blob ? URL.createObjectURL(value.blob) : undefined,
+    }))
+    .sort((a, b) => b.record.completedAt - a.record.completedAt);
 }
 
 export async function deleteTransfer(id: string) {
@@ -17,6 +22,5 @@ export async function deleteTransfer(id: string) {
 }
 
 export async function clearTransfers() {
-  const all = await entries<string, TransferRecord>();
-  await Promise.all(all.map(([key]) => del(key)));
+  await clear();
 }
