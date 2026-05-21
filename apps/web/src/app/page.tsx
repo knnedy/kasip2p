@@ -325,9 +325,13 @@ export default function Home() {
         </div>
       )}
 
-      <p className="relative z-10 mt-12 pb-8 text-xs text-muted-foreground/40">
-        transfers are end-to-end encrypted · no cloud intermediaries
-      </p>
+      {/* footer */}
+      <div className="relative z-10 mt-auto pt-16 pb-8 text-center">
+        <p className="text-xs text-muted-foreground/50 flex items-center justify-center gap-2">
+          <span className="hidden sm:inline">✓</span>
+          <span>Zero cloud · Maximum privacy · Open source</span>
+        </p>
+      </div>
     </main>
   );
 }
