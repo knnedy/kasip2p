@@ -245,7 +245,7 @@ export default function Home() {
         </h1>
 
         <p className="max-w-sm text-center text-sm text-muted-foreground">
-          open this page on any device on your network to connect instantly
+          Open this page on any device on your network to connect instantly
         </p>
         <div className="inline-flex items-center gap-2 rounded-full border border-[#00d9ff]/20 bg-[#00d9ff]/5 px-4 py-1.5">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#00d9ff]" />
@@ -267,7 +267,7 @@ export default function Home() {
           <div className="mb-3 flex items-center gap-2">
             <Wifi className="h-3.5 w-3.5 text-[#00d9ff]" />
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              nearby devices
+              Nearby devices
             </p>
           </div>
           <div className="flex flex-col gap-2">
@@ -290,7 +290,7 @@ export default function Home() {
                 <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-[#00d9ff]/20 bg-[#00d9ff]/5 px-3 py-1.5 transition-all group-hover:border-[#00d9ff]/40 group-hover:bg-[#00d9ff]/10">
                   <Zap className="h-3 w-3 text-[#00d9ff]" />
                   <span className="text-xs font-medium text-[#00d9ff]">
-                    connect
+                    Connect
                   </span>
                 </div>
               </button>

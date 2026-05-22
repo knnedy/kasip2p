@@ -113,7 +113,7 @@ export default function TransferPage() {
           onClick={() => router.back()}
           className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
           <ArrowLeft className="h-3.5 w-3.5" />
-          back
+          Back
         </button>
 
         {targetPeer && (
@@ -134,7 +134,7 @@ export default function TransferPage() {
 
         <div className="ml-auto flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#00d9ff]" />
-          <span className="text-xs text-muted-foreground">connected</span>
+          <span className="text-xs text-muted-foreground">Connected</span>
         </div>
       </header>
 
@@ -164,7 +164,7 @@ export default function TransferPage() {
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">
-              {isDragging ? "drop to send" : "drag files here"}
+              {isDragging ? "Drop to send" : "Drag files here"}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               or click to browse · any file type · any size
@@ -184,7 +184,7 @@ export default function TransferPage() {
             <div className="flex items-center gap-2">
               <Zap className="h-3.5 w-3.5 text-[#00d9ff]" />
               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                transferring
+                Transferring
               </p>
             </div>
             {activeTransfers.map((t) => {
@@ -223,7 +223,7 @@ export default function TransferPage() {
             <div className="flex items-center gap-2">
               <Clock className="h-3.5 w-3.5 text-muted-foreground" />
               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                history
+                History
               </p>
             </div>
             {peerHistory.map(({ record, downloadUrl }) => (
@@ -247,7 +247,7 @@ export default function TransferPage() {
                     download={record.fileName}
                     className="shrink-0 rounded-lg border border-[#00d9ff]/20 bg-[#00d9ff]/5 px-3 py-1.5 text-xs font-medium text-[#00d9ff] transition-all hover:bg-[#00d9ff]/10"
                     onClick={(e) => e.stopPropagation()}>
-                    download
+                    Download
                   </a>
                 )}
               </div>

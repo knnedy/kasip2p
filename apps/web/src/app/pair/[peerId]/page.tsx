@@ -153,7 +153,7 @@ export default function PairPage() {
         onClick={() => router.back()}
         className="absolute left-6 top-6 flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
         <ArrowLeft className="h-3.5 w-3.5" />
-        back
+        Back
       </button>
 
       <div className="relative z-10 w-full max-w-sm">
@@ -172,7 +172,7 @@ export default function PairPage() {
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#00d9ff]" />
-              <span className="text-xs text-muted-foreground">nearby</span>
+              <span className="text-xs text-muted-foreground">Nearby</span>
             </div>
           </div>
         )}
@@ -182,10 +182,10 @@ export default function PairPage() {
             <div className="flex flex-col items-center gap-6">
               <div className="flex flex-col items-center gap-2 text-center">
                 <h2 className="text-xl font-bold text-foreground">
-                  pair device
+                  Pair device
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  show this PIN or QR code to the other device
+                  Show this PIN or QR code to the other device
                 </p>
               </div>
 
@@ -201,7 +201,7 @@ export default function PairPage() {
 
               <div className="flex flex-col items-center gap-2">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  your PIN
+                  Your PIN
                 </p>
                 <div className="flex gap-3">
                   {pin.split("").map((digit, i) => (
@@ -217,7 +217,7 @@ export default function PairPage() {
               <button
                 onClick={handleReject}
                 className="w-full rounded-lg border border-red-500/20 bg-red-500/5 py-2 text-xs font-medium text-red-400 transition-all hover:bg-red-500/10">
-                reject
+                Reject
               </button>
             </div>
           )}
@@ -252,7 +252,7 @@ export default function PairPage() {
                 />
                 {pinError && (
                   <p className="text-center text-xs text-red-400">
-                    incorrect PIN, try again
+                    Incorrect PIN, try again
                   </p>
                 )}
                 <button
@@ -260,7 +260,7 @@ export default function PairPage() {
                   disabled={enteredPin.length !== 4}
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#00d9ff]/20 bg-[#00d9ff]/10 py-3 text-sm font-medium text-[#00d9ff] transition-all hover:bg-[#00d9ff]/20 disabled:opacity-40">
                   <Zap className="h-4 w-4" />
-                  confirm
+                  Confirm
                 </button>
               </div>
             </div>
@@ -271,9 +271,9 @@ export default function PairPage() {
               <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[#00d9ff]/30 bg-[#00d9ff]/10">
                 <Zap className="h-6 w-6 text-[#00d9ff]" />
               </div>
-              <h2 className="text-xl font-bold text-foreground">connected</h2>
+              <h2 className="text-xl font-bold text-foreground">Connected</h2>
               <p className="text-xs text-muted-foreground">
-                redirecting to transfer...
+                Redirecting to transfer...
               </p>
             </div>
           )}
@@ -284,15 +284,15 @@ export default function PairPage() {
                 <Shield className="h-6 w-6 text-red-400" />
               </div>
               <h2 className="text-xl font-bold text-foreground">
-                pairing rejected
+                Pairing rejected
               </h2>
               <p className="text-xs text-muted-foreground">
-                the other device declined or is unreachable
+                The other device declined or is unreachable
               </p>
               <button
                 onClick={() => router.back()}
                 className="mt-2 rounded-lg border border-border bg-card px-4 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
-                go back
+                Go back
               </button>
             </div>
           )}
@@ -300,7 +300,7 @@ export default function PairPage() {
 
         <p className="mt-4 text-center text-[10px] text-muted-foreground/40">
           <Shield className="mr-1 inline h-3 w-3" />
-          connection is end-to-end encrypted via DTLS
+          Connection is end-to-end encrypted via DTLS
         </p>
       </div>
     </main>
