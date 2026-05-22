@@ -19,7 +19,9 @@ export interface PeerMeta {
 export type SignalMessage =
   | { type: "register"; peerId: string; meta: PeerMeta }
   | { type: "peer-list"; peers: PeerMeta[] }
-  | { type: "pair-request"; fromId: string; targetId: string; pin: string }
+  | { type: "pair-request"; fromId: string; targetId: string }
+  | { type: "pair-pin"; fromId: string; targetId: string; pin: string } // Device B sends generated PIN to signaling server
+  | { type: "pair-confirm"; fromId: string; targetId: string; pin: string } // Device A confirms with PIN
   | { type: "pair-accept"; fromId: string; targetId: string }
   | { type: "pair-reject"; fromId: string; targetId: string }
   | {
