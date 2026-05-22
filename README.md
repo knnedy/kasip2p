@@ -54,7 +54,7 @@ pnpm install
 ### Environment variables
 
 ```bash
-cp .env.example apps/web/.env.local
+cp apps/web/.env.local
 ```
 
 Open `apps/web/.env.local` and set:
