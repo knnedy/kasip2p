@@ -1,5 +1,7 @@
 # KasiP2P
 
+**Kasi** (Swahili) — _fast, speed, velocity_
+
 Local-first peer-to-peer file sharing. Open the app on any two devices on the same network, pair them, and transfer files directly — no cloud, no intermediaries.
 
 ## How it works
@@ -29,12 +31,41 @@ File data never leaves your network. The signaling server only handles the initi
 
 ## Project structure
 
+```
 kasip2p/
 ├── apps/
-│ ├── web/ # Next.js app → Vercel
-│ └── signaling/ # Hono WebSocket server → Render
+│   ├── web/                         # Next.js app → Vercel
+│   │   └── src/
+│   │       ├── app/
+│   │       │   ├── pair/[peerId]/   # Pairing flow
+│   │       │   ├── transfer/[peerId]/ # File transfer UI
+│   │       │   ├── layout.tsx
+│   │       │   └── page.tsx         # Radar discovery page
+│   │       ├── components/
+│   │       │   └── pair-request-modal.tsx
+│   │       ├── hooks/
+│   │       │   ├── use-incoming-pair.ts
+│   │       │   ├── use-peers.ts
+│   │       │   └── use-webrtc.ts
+│   │       ├── lib/
+│   │       │   ├── signaling/
+│   │       │   │   └── ws-client.ts
+│   │       │   ├── store/
+│   │       │   │   └── idb.ts
+│   │       │   └── webrtc/
+│   │       │       ├── chunk-utils.ts
+│   │       │       └── peer-manager.ts
+│   │       └── providers/
+│   │           ├── pairing-provider.tsx
+│   │           └── query-provider.tsx
+│   └── signaling/                   # Hono WebSocket server → Render
+│       └── src/
+│           └── index.ts
 └── packages/
-└── shared/ # Shared TypeScript types
+    └── shared/                      # Shared TypeScript types
+        └── src/
+            └── index.ts
+```
 
 ## Local development
 
