@@ -11,13 +11,12 @@ export function PairingProvider({ children }: { children: React.ReactNode }) {
 
   const [localPeerId] = useState<string>(() => {
     if (typeof window === "undefined") return "";
-    const id = localStorage.getItem("kasip2p-peer-id");
-    if (id) signalingClient.connect(id);
-    return id ?? "";
+    return localStorage.getItem("kasip2p-peer-id") ?? "";
   });
 
   useEffect(() => {
     if (!localPeerId) return;
+    signalingClient.connect(localPeerId);
 
     const cleanup = signalingClient.onMessage((msg) => {
       if (msg.type === "peer-list") {
