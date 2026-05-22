@@ -3,16 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { signalingClient } from "@/lib/signaling/ws-client";
 import {
-  createOffer,
-  handleOffer,
-  handleAnswer,
-  handleIceCandidate,
+  handleSdp,
+  handleIce,
+  initiateConnection,
   closeConnection,
 } from "@/lib/webrtc/peer-manager";
 import { sendFile, createReceiver } from "@/lib/webrtc/chunk-utils";
 import { saveTransfer } from "@/lib/store/idb";
-import type { TransferProgress } from "@kasip2p/shared";
 import { generateId } from "@/lib/utils";
+import type { TransferProgress } from "@kasip2p/shared";
 
 export function useWebRTC(
   localPeerId: string,
@@ -27,30 +26,6 @@ export function useWebRTC(
   useEffect(() => {
     onTransferCompleteRef.current = onTransferComplete;
   }, [onTransferComplete]);
-
-  useEffect(() => {
-    const cleanup = signalingClient.onMessage(async (msg) => {
-      switch (msg.type) {
-        case "sdp": {
-          if (msg.sdp.type === "offer") {
-            const pc = await handleOffer(msg.fromId, localPeerId, msg.sdp);
-            pc.ondatachannel = ({ channel }) => {
-              registerChannel(channel, msg.fromId);
-            };
-          } else if (msg.sdp.type === "answer") {
-            await handleAnswer(msg.fromId, msg.sdp);
-          }
-          break;
-        }
-        case "ice": {
-          await handleIceCandidate(msg.fromId, msg.candidate);
-          break;
-        }
-      }
-    });
-
-    return () => cleanup();
-  }, [localPeerId]);
 
   function registerChannel(dc: RTCDataChannel, remotePeerId: string) {
     dataChannels.current.set(remotePeerId, dc);
@@ -83,14 +58,42 @@ export function useWebRTC(
     dc.onmessage = ({ data }) => receiver(data as ArrayBuffer | string);
   }
 
-  async function initiate(targetId: string) {
-    const { dc } = await createOffer(targetId, localPeerId);
-    registerChannel(dc, targetId);
+  useEffect(() => {
+    if (!localPeerId) return;
+
+    const cleanup = signalingClient.onMessage(async (msg) => {
+      switch (msg.type) {
+        case "sdp": {
+          await handleSdp(localPeerId, msg.fromId, msg.sdp, (dc) =>
+            registerChannel(dc, msg.fromId),
+          );
+          break;
+        }
+        case "ice": {
+          await handleIce(localPeerId, msg.fromId, msg.candidate, (dc) =>
+            registerChannel(dc, msg.fromId),
+          );
+          break;
+        }
+      }
+    });
+
+    return () => cleanup();
+  }, [localPeerId]);
+
+  function initiate(targetId: string) {
+    const dc = initiateConnection(localPeerId, targetId, (channel) =>
+      registerChannel(channel, targetId),
+    );
+    return dc;
   }
 
   async function transfer(targetId: string, file: File) {
     const dc = dataChannels.current.get(targetId);
-    if (!dc) return;
+    if (!dc || dc.readyState !== "open") {
+      console.error("data channel not open");
+      return;
+    }
 
     const transferId = generateId();
 
