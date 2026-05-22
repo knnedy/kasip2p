@@ -20,12 +20,10 @@ export function usePeers(localPeerId: string) {
         setPeers(
           msg.peers
             .filter((p) => p.peerId !== localPeerId)
-            .map((meta) => {
-              return {
-                meta,
-                connectionState: "discovered" as ConnectionState,
-              };
-            }),
+            .map((meta) => ({
+              meta,
+              connectionState: "discovered" as ConnectionState,
+            })),
         );
       }
     });
