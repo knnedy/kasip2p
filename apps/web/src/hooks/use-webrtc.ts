@@ -12,6 +12,7 @@ import {
 import { sendFile, createReceiver } from "@/lib/webrtc/chunk-utils";
 import { saveTransfer } from "@/lib/store/idb";
 import type { TransferProgress } from "@kasip2p/shared";
+import { generateId } from "@/lib/utils";
 
 export function useWebRTC(
   localPeerId: string,
@@ -91,7 +92,7 @@ export function useWebRTC(
     const dc = dataChannels.current.get(targetId);
     if (!dc) return;
 
-    const transferId = crypto.randomUUID();
+    const transferId = generateId();
 
     await sendFile(dc, file, transferId, (p) =>
       setProgress((prev) => new Map(prev).set(p.transferId, p)),

@@ -7,6 +7,7 @@ import { siAndroid, siApple, siUbuntu, siLinux } from "simple-icons";
 import type { OS } from "@kasip2p/shared";
 import { Zap, Shield, Wifi } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { generateId } from "@/lib/utils";
 
 const ACCENT = "#00d9ff";
 const ACCENT_DIM = "rgba(0,217,255,";
@@ -14,7 +15,7 @@ const ACCENT_DIM = "rgba(0,217,255,";
 function getOrCreatePeerId(): string {
   const stored = localStorage.getItem("kasip2p-peer-id");
   if (stored) return stored;
-  const id = crypto.randomUUID();
+  const id = generateId();
   localStorage.setItem("kasip2p-peer-id", id);
   return id;
 }
