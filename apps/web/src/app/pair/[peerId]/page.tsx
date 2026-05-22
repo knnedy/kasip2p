@@ -49,7 +49,8 @@ function generatePin(): string {
   return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
-type PairingState = "idle" | "waiting" | "pin-entry" | "accepted" | "rejected";
+type Role = "requester" | "receiver";
+type PairingState = "waiting" | "accepted" | "rejected";
 
 export default function PairPage() {
   const params = useParams();
@@ -64,13 +65,23 @@ export default function PairPage() {
   const { peers } = usePeers(localPeerId);
   const targetPeer = peers.find((p) => p.meta.peerId === targetId);
 
+  const [role] = useState<Role>(() => {
+    if (typeof window === "undefined") return "requester";
+    const key = `pair-request-${targetId}`;
+    const incoming = sessionStorage.getItem(key);
+    if (incoming) {
+      sessionStorage.removeItem(key);
+      return "receiver";
+    }
+    return "requester";
+  });
+
   const [pin] = useState<string>(() => generatePin());
   const [pairingState, setPairingState] = useState<PairingState>("waiting");
   const [enteredPin, setEnteredPin] = useState<string>("");
   const [pinError, setPinError] = useState<boolean>(false);
   const pinInputRef = useRef<HTMLInputElement>(null);
 
-  // the QR code encodes everything the target needs to pair back
   const qrValue = JSON.stringify({
     peerId: localPeerId,
     pin,
@@ -78,15 +89,24 @@ export default function PairPage() {
   });
 
   useEffect(() => {
-    // send the pair request to the target
     if (!localPeerId || !targetId) return;
 
-    signalingClient.send({
-      type: "pair-request",
-      fromId: localPeerId,
-      targetId,
-      pin,
-    });
+    if (role === "receiver") {
+      // Device B registers its PIN with the server
+      signalingClient.send({
+        type: "pair-pin",
+        fromId: localPeerId,
+        targetId,
+        pin,
+      });
+    } else {
+      // Device A sends the pair request
+      signalingClient.send({
+        type: "pair-request",
+        fromId: localPeerId,
+        targetId,
+      });
+    }
 
     const cleanup = signalingClient.onMessage((msg) => {
       if (msg.type === "pair-accept" && msg.fromId === targetId) {
@@ -97,36 +117,38 @@ export default function PairPage() {
         setPairingState("rejected");
       }
       if (msg.type === "error") {
-        setPairingState("rejected");
+        setPinError(true);
+        setEnteredPin("");
+        pinInputRef.current?.focus();
       }
     });
 
     return () => cleanup();
-  }, [localPeerId, targetId, pin, router]);
+  }, [localPeerId, targetId, pin, role, router]);
 
   function handlePinSubmit() {
-    if (enteredPin === pin) {
-      signalingClient.send({
-        type: "pair-accept",
-        fromId: localPeerId,
-        targetId,
-      });
-      setPairingState("accepted");
-      setTimeout(() => router.push(`/transfer/${targetId}`), 1200);
-    } else {
-      setPinError(true);
-      setEnteredPin("");
-      pinInputRef.current?.focus();
-    }
+    signalingClient.send({
+      type: "pair-confirm",
+      fromId: localPeerId,
+      targetId,
+      pin: enteredPin,
+    });
+  }
+
+  function handleReject() {
+    signalingClient.send({
+      type: "pair-reject",
+      fromId: localPeerId,
+      targetId,
+    });
+    router.back();
   }
 
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4">
-      {/* background */}
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(0,217,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,217,255,0.03)_1px,transparent_1px)] bg-size-[64px_64px]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,transparent_40%,var(--background)_100%)]" />
 
-      {/* back button */}
       <button
         onClick={() => router.back()}
         className="absolute left-6 top-6 flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
@@ -135,7 +157,6 @@ export default function PairPage() {
       </button>
 
       <div className="relative z-10 w-full max-w-sm">
-        {/* target device card */}
         {targetPeer && (
           <div className="mb-8 flex items-center gap-3 rounded-xl border border-[#00d9ff]/15 bg-card px-4 py-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#00d9ff]/20 bg-[#00d9ff]/5">
@@ -156,20 +177,18 @@ export default function PairPage() {
           </div>
         )}
 
-        {/* pairing card */}
         <div className="rounded-2xl border border-[#00d9ff]/15 bg-card p-6">
-          {pairingState === "waiting" && (
+          {pairingState === "waiting" && role === "receiver" && (
             <div className="flex flex-col items-center gap-6">
               <div className="flex flex-col items-center gap-2 text-center">
                 <h2 className="text-xl font-bold text-foreground">
                   pair device
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  scan the QR code or enter the PIN on the other device
+                  show this PIN or QR code to the other device
                 </p>
               </div>
 
-              {/* QR code */}
               <div className="rounded-xl border border-[#00d9ff]/15 bg-white p-4">
                 <QRCodeSVG
                   value={qrValue}
@@ -180,10 +199,9 @@ export default function PairPage() {
                 />
               </div>
 
-              {/* PIN display */}
               <div className="flex flex-col items-center gap-2">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  or enter this PIN
+                  your PIN
                 </p>
                 <div className="flex gap-3">
                   {pin.split("").map((digit, i) => (
@@ -196,43 +214,54 @@ export default function PairPage() {
                 </div>
               </div>
 
-              {/* PIN fallback — if this device is the receiver */}
-              <div className="w-full border-t border-border pt-4">
-                <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  received a PIN instead?
+              <button
+                onClick={handleReject}
+                className="w-full rounded-lg border border-red-500/20 bg-red-500/5 py-2 text-xs font-medium text-red-400 transition-all hover:bg-red-500/10">
+                reject
+              </button>
+            </div>
+          )}
+
+          {pairingState === "waiting" && role === "requester" && (
+            <div className="flex flex-col items-center gap-6">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <h2 className="text-xl font-bold text-foreground">Enter PIN</h2>
+                <p className="text-xs text-muted-foreground">
+                  Enter the PIN shown on the other device
                 </p>
-                <div className="flex gap-2">
-                  <input
-                    ref={pinInputRef}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={4}
-                    placeholder="enter PIN"
-                    value={enteredPin}
-                    onChange={(e) => {
-                      setPinError(false);
-                      setEnteredPin(e.target.value.replace(/\D/g, ""));
-                    }}
-                    onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
-                    className={`flex-1 rounded-lg border px-3 py-2 text-center text-sm font-mono tracking-widest bg-background text-foreground outline-none transition-colors ${
-                      pinError
-                        ? "border-red-500/50 text-red-400"
-                        : "border-border focus:border-[#00d9ff]/40"
-                    }`}
-                  />
-                  <button
-                    onClick={handlePinSubmit}
-                    disabled={enteredPin.length !== 4}
-                    className="flex items-center gap-1.5 rounded-lg border border-[#00d9ff]/20 bg-[#00d9ff]/10 px-4 py-2 text-xs font-medium text-[#00d9ff] transition-all hover:bg-[#00d9ff]/20 disabled:opacity-40">
-                    <Zap className="h-3 w-3" />
-                    confirm
-                  </button>
-                </div>
+              </div>
+
+              <div className="flex w-full flex-col gap-3">
+                <input
+                  ref={pinInputRef}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={4}
+                  placeholder="0000"
+                  value={enteredPin}
+                  onChange={(e) => {
+                    setPinError(false);
+                    setEnteredPin(e.target.value.replace(/\D/g, ""));
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
+                  className={`w-full rounded-xl border bg-background px-4 py-4 text-center text-3xl font-bold font-mono tracking-[1rem] text-foreground outline-none transition-colors ${
+                    pinError
+                      ? "border-red-500/50 text-red-400"
+                      : "border-border focus:border-[#00d9ff]/40"
+                  }`}
+                />
                 {pinError && (
-                  <p className="mt-2 text-xs text-red-400">
+                  <p className="text-center text-xs text-red-400">
                     incorrect PIN, try again
                   </p>
                 )}
+                <button
+                  onClick={handlePinSubmit}
+                  disabled={enteredPin.length !== 4}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#00d9ff]/20 bg-[#00d9ff]/10 py-3 text-sm font-medium text-[#00d9ff] transition-all hover:bg-[#00d9ff]/20 disabled:opacity-40">
+                  <Zap className="h-4 w-4" />
+                  confirm
+                </button>
               </div>
             </div>
           )}
@@ -269,7 +298,6 @@ export default function PairPage() {
           )}
         </div>
 
-        {/* security note */}
         <p className="mt-4 text-center text-[10px] text-muted-foreground/40">
           <Shield className="mr-1 inline h-3 w-3" />
           connection is end-to-end encrypted via DTLS
