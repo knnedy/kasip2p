@@ -13,33 +13,31 @@ export function usePeers(localPeerId: string) {
   const [peers, setPeers] = useState<PeerEntry[]>([]);
 
   useEffect(() => {
-    signalingClient.connect(localPeerId);
+    if (!localPeerId) return;
 
     const cleanup = signalingClient.onMessage((msg) => {
       if (msg.type === "peer-list") {
-        setPeers((prev) => {
-          return msg.peers
-            .filter((p) => p.peerId !== localPeerId) // exclude self
+        setPeers(
+          msg.peers
+            .filter((p) => p.peerId !== localPeerId)
             .map((meta) => {
-              const existing = prev.find((e) => e.meta.peerId === meta.peerId);
               return {
                 meta,
-                connectionState: existing?.connectionState ?? "discovered",
+                connectionState: "discovered" as ConnectionState,
               };
-            });
-        });
+            }),
+        );
       }
     });
 
-    return () => {
-      cleanup();
-      signalingClient.disconnect();
-    };
+    return () => cleanup();
   }, [localPeerId]);
 
   function updatePeerState(peerId: string, connectionState: ConnectionState) {
     setPeers((prev) =>
-      prev.map((p) => (p.meta.peerId ? { ...p, connectionState } : p)),
+      prev.map((p) =>
+        p.meta.peerId === peerId ? { ...p, connectionState } : p,
+      ),
     );
   }
 

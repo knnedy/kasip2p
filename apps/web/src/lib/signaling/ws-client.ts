@@ -8,6 +8,12 @@ class SignalingClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   connect(peerId: string) {
+    if (
+      this.socket?.readyState === WebSocket.OPEN ||
+      this.socket?.readyState === WebSocket.CONNECTING
+    )
+      return;
+
     const url = process.env.NEXT_PUBLIC_SIGNAL_URL ?? "ws://localhost:3001";
     this.socket = new WebSocket(`${url}/ws`);
 
