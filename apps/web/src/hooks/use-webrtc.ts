@@ -13,11 +13,19 @@ import { sendFile, createReceiver } from "@/lib/webrtc/chunk-utils";
 import { saveTransfer } from "@/lib/store/idb";
 import type { TransferProgress } from "@kasip2p/shared";
 
-export function useWebRTC(localPeerId: string) {
+export function useWebRTC(
+  localPeerId: string,
+  onTransferComplete?: () => void,
+) {
   const [progress, setProgress] = useState<Map<string, TransferProgress>>(
     new Map(),
   );
   const dataChannels = useRef<Map<string, RTCDataChannel>>(new Map());
+  const onTransferCompleteRef = useRef(onTransferComplete);
+
+  useEffect(() => {
+    onTransferCompleteRef.current = onTransferComplete;
+  }, [onTransferComplete]);
 
   useEffect(() => {
     const cleanup = signalingClient.onMessage(async (msg) => {
@@ -67,6 +75,7 @@ export function useWebRTC(localPeerId: string) {
           next.delete(transferId);
           return next;
         });
+        onTransferCompleteRef.current?.();
       },
     );
 
@@ -98,6 +107,8 @@ export function useWebRTC(localPeerId: string) {
       peerName: targetId,
       completedAt: Date.now(),
     });
+
+    onTransferCompleteRef.current?.();
 
     setProgress((prev) => {
       const next = new Map(prev);

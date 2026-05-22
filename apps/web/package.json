@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@kasip2p/shared": "workspace:*",
+    "@tanstack/react-query": "^5.100.11",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "idb-keyval": "^6.2.2",

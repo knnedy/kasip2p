@@ -6,6 +6,7 @@ import type { PeerEntry } from "@/hooks/use-peers";
 import { siAndroid, siApple, siUbuntu, siLinux } from "simple-icons";
 import type { OS } from "@kasip2p/shared";
 import { Zap, Shield, Wifi } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const ACCENT = "#00d9ff";
 const ACCENT_DIM = "rgba(0,217,255,";
@@ -181,6 +182,7 @@ function drawRadar(
 }
 
 export default function Home() {
+  const router = useRouter();
   const [peerId] = useState<string>(() => {
     if (typeof window === "undefined") return "";
     return getOrCreatePeerId();
@@ -270,6 +272,7 @@ export default function Home() {
           <div className="flex flex-col gap-2">
             {peers.map((peer: PeerEntry) => (
               <button
+                onClick={() => router.push(`/pair/${peer.meta.peerId}`)}
                 key={peer.meta.peerId}
                 className="group flex w-full items-center gap-4 rounded-xl border border-[#00d9ff]/10 bg-card px-4 py-3 text-left transition-all duration-200 hover:border-[#00d9ff]/30 hover:bg-card/80">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#00d9ff]/20 bg-[#00d9ff]/5">

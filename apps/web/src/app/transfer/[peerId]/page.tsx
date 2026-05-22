@@ -6,8 +6,9 @@ import { useWebRTC } from "@/hooks/use-webrtc";
 import { usePeers } from "@/hooks/use-peers";
 import { getTransfers } from "@/lib/store/idb";
 import { ArrowLeft, Upload, Zap, CheckCircle, Clock } from "lucide-react";
-import type { OS, TransferRecord } from "@kasip2p/shared";
+import type { OS } from "@kasip2p/shared";
 import { siAndroid, siApple, siUbuntu, siLinux } from "simple-icons";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const ACCENT = "#00d9ff";
 
@@ -63,30 +64,34 @@ export default function TransferPage() {
     return localStorage.getItem("kasip2p-peer-id") ?? "";
   });
 
+  const queryClient = useQueryClient();
   const { peers } = usePeers(localPeerId);
   const targetPeer = peers.find((p) => p.meta.peerId === targetId);
-  const { progress, initiate, transfer } = useWebRTC(localPeerId);
 
-  const [history, setHistory] = useState<
-    { record: TransferRecord; downloadUrl?: string }[]
-  >([]);
+  const { progress, initiate, transfer } = useWebRTC(localPeerId, () => {
+    queryClient.invalidateQueries({ queryKey: ["transfers"] });
+  });
+
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initiated = useRef(false);
 
+  // initiate is excluded from deps — it's a stable function reference
+  // but we guard with initiated ref to ensure it only runs once
   useEffect(() => {
-    if (!localPeerId || initiated.current) return;
+    if (!localPeerId || !targetId || initiated.current) return;
     initiated.current = true;
-    initiate(targetId);
-  }, [localPeerId, targetId, initiate]);
+    void initiate(targetId);
+  }, [localPeerId, targetId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    getTransfers().then(setHistory);
-  }, [progress]); // refresh history when a transfer completes
+  const { data: history = [] } = useQuery({
+    queryKey: ["transfers"],
+    queryFn: getTransfers,
+  });
 
   function handleFiles(files: FileList | null) {
     if (!files) return;
-    Array.from(files).forEach((file) => transfer(targetId, file));
+    Array.from(files).forEach((file) => void transfer(targetId, file));
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -100,11 +105,9 @@ export default function TransferPage() {
 
   return (
     <main className="relative flex min-h-screen flex-col overflow-hidden bg-background">
-      {/* background */}
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(0,217,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,217,255,0.03)_1px,transparent_1px)] bg-size-[64px_64px]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,transparent_40%,var(--background)_100%)]" />
 
-      {/* header */}
       <header className="relative z-10 flex items-center gap-4 border-b border-border px-6 py-4">
         <button
           onClick={() => router.back()}
@@ -136,7 +139,6 @@ export default function TransferPage() {
       </header>
 
       <div className="relative z-10 flex flex-1 flex-col gap-6 p-6">
-        {/* drop zone */}
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -177,7 +179,6 @@ export default function TransferPage() {
           />
         </div>
 
-        {/* active transfers */}
         {activeTransfers.length > 0 && (
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
@@ -217,7 +218,6 @@ export default function TransferPage() {
           </div>
         )}
 
-        {/* transfer history */}
         {peerHistory.length > 0 && (
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
