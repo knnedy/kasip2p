@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: kasip2p-signal
+    name: kasip2p-signaling
     runtime: node
     rootDir: .
     buildCommand: pnpm install && pnpm --filter signaling build
