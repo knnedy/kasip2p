@@ -25,12 +25,13 @@ Working log for the staged refactor on `refactor/architecture`.
 - fix(signaling): bind PIN to the device that received the pair request
 - build(shared): import with .ts extensions (Turbopack can't map .js -> .ts in shared source)
 - refactor(web): validate signaling messages in ws-client (legacy SignalMessage removed)
+- refactor(web): model pairing as a state machine (lib/pairing/machine.ts, 10 tests)
 
 ## Next 3 steps
 
-1. refactor(web): model pairing as a state machine
-2. refactor(web): model transfer as a state machine
-3. refactor(web): split peer-manager, chunk-utils, use-webrtc
+1. refactor(web): model transfer as a state machine
+2. refactor(web): split peer-manager, chunk-utils, use-webrtc (needs a two-device smoke test)
+3. refactor(web): extract shared OsIcon component
 
 ## Half-done files
 

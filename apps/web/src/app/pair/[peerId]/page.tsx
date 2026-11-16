@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useReducer, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { signalingClient } from "@/lib/signaling/ws-client";
+import {
+  initialPairingState,
+  pairingReducer,
+  type PairingRole,
+} from "@/lib/pairing/machine";
 import { usePeers } from "@/hooks/use-peers";
 import { Zap, ArrowLeft, Shield } from "lucide-react";
 import type { OS } from "@kasip2p/shared";
@@ -49,8 +54,6 @@ function generatePin(): string {
   return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
-type Role = "requester" | "receiver";
-type PairingState = "waiting" | "accepted" | "rejected";
 
 export default function PairPage() {
   const params = useParams();
@@ -65,22 +68,26 @@ export default function PairPage() {
   const { peers } = usePeers(localPeerId);
   const targetPeer = peers.find((p) => p.meta.peerId === targetId);
 
-  const [role] = useState<Role>(() => {
+  const [role] = useState<PairingRole>(() => {
     if (typeof window === "undefined") return "requester";
     const key = `pair-request-${targetId}`;
     const incoming = sessionStorage.getItem(key);
     if (incoming) {
       sessionStorage.removeItem(key);
-      return "receiver";
+      return "approver";
     }
     return "requester";
   });
 
   const [pin] = useState<string>(() => generatePin());
-  const [pairingState, setPairingState] = useState<PairingState>("waiting");
+  const [state, dispatch] = useReducer(
+    pairingReducer,
+    role,
+    initialPairingState,
+  );
   const [enteredPin, setEnteredPin] = useState<string>("");
-  const [pinError, setPinError] = useState<boolean>(false);
   const pinInputRef = useRef<HTMLInputElement>(null);
+  const pinError = state.status === "awaiting-pin" && state.pinError;
 
   const qrValue = JSON.stringify({
     peerId: localPeerId,
@@ -91,7 +98,7 @@ export default function PairPage() {
   useEffect(() => {
     if (!localPeerId || !targetId) return;
 
-    if (role === "receiver") {
+    if (role === "approver") {
       // Device B registers its PIN with the server
       signalingClient.send({
         type: "pair-pin",
@@ -108,23 +115,36 @@ export default function PairPage() {
 
     const cleanup = signalingClient.onMessage((msg) => {
       if (msg.type === "pair-accept" && msg.fromId === targetId) {
-        setPairingState("accepted");
-        setTimeout(() => router.push(`/transfer/${targetId}`), 1200);
+        dispatch({ type: "accepted" });
       }
       if (msg.type === "pair-reject" && msg.fromId === targetId) {
-        setPairingState("rejected");
+        dispatch({ type: "rejected" });
       }
       if (msg.type === "error" && msg.code === "incorrect-pin") {
-        setPinError(true);
+        dispatch({ type: "pin-incorrect" });
         setEnteredPin("");
-        pinInputRef.current?.focus();
+      }
+      if (msg.type === "error" && msg.code === "peer-unreachable") {
+        dispatch({ type: "unreachable" });
       }
     });
 
     return () => cleanup();
-  }, [localPeerId, targetId, pin, role, router]);
+  }, [localPeerId, targetId, pin, role]);
+
+  useEffect(() => {
+    if (state.status !== "paired") return;
+    const timer = setTimeout(() => router.push(`/transfer/${targetId}`), 1200);
+    return () => clearTimeout(timer);
+  }, [state.status, router, targetId]);
+
+  useEffect(() => {
+    if (pinError) pinInputRef.current?.focus();
+  }, [pinError]);
 
   function handlePinSubmit() {
+    if (state.status !== "awaiting-pin" || enteredPin.length !== 4) return;
+    dispatch({ type: "pin-submitted" });
     signalingClient.send({
       type: "pair-confirm",
       targetId,
@@ -174,7 +194,7 @@ export default function PairPage() {
         )}
 
         <div className="rounded-2xl border border-[#00d9ff]/15 bg-card p-6">
-          {pairingState === "waiting" && role === "receiver" && (
+          {state.status === "showing-pin" && (
             <div className="flex flex-col items-center gap-6">
               <div className="flex flex-col items-center gap-2 text-center">
                 <h2 className="text-xl font-bold text-foreground">
@@ -218,7 +238,8 @@ export default function PairPage() {
             </div>
           )}
 
-          {pairingState === "waiting" && role === "requester" && (
+          {(state.status === "awaiting-pin" ||
+            state.status === "verifying") && (
             <div className="flex flex-col items-center gap-6">
               <div className="flex flex-col items-center gap-2 text-center">
                 <h2 className="text-xl font-bold text-foreground">Enter PIN</h2>
@@ -236,7 +257,7 @@ export default function PairPage() {
                   placeholder="0000"
                   value={enteredPin}
                   onChange={(e) => {
-                    setPinError(false);
+                    dispatch({ type: "pin-edited" });
                     setEnteredPin(e.target.value.replace(/\D/g, ""));
                   }}
                   onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
@@ -253,7 +274,9 @@ export default function PairPage() {
                 )}
                 <button
                   onClick={handlePinSubmit}
-                  disabled={enteredPin.length !== 4}
+                  disabled={
+                    enteredPin.length !== 4 || state.status === "verifying"
+                  }
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#00d9ff]/20 bg-[#00d9ff]/10 py-3 text-sm font-medium text-[#00d9ff] transition-all hover:bg-[#00d9ff]/20 disabled:opacity-40">
                   <Zap className="h-4 w-4" />
                   Confirm
@@ -262,7 +285,7 @@ export default function PairPage() {
             </div>
           )}
 
-          {pairingState === "accepted" && (
+          {state.status === "paired" && (
             <div className="flex flex-col items-center gap-4 py-6 text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[#00d9ff]/30 bg-[#00d9ff]/10">
                 <Zap className="h-6 w-6 text-[#00d9ff]" />
@@ -274,7 +297,7 @@ export default function PairPage() {
             </div>
           )}
 
-          {pairingState === "rejected" && (
+          {(state.status === "rejected" || state.status === "unreachable") && (
             <div className="flex flex-col items-center gap-4 py-6 text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-full border border-red-500/30 bg-red-500/10">
                 <Shield className="h-6 w-6 text-red-400" />
