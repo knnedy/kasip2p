@@ -28,12 +28,23 @@ Working log for the staged refactor on `refactor/architecture`.
 - refactor(web): model pairing as a state machine (lib/pairing/machine.ts, 10 tests)
 - refactor(web): add transfer state machine (lib/transfer/machine.ts, 7 tests; wired in next step)
 - fix(web): create the peer id before the provider connects
+- refactor(web): split peer-manager, chunk-utils, use-webrtc (4 chunk-utils tests)
 
 ## Next 3 steps
 
-1. refactor(web): split peer-manager, chunk-utils, use-webrtc (needs a two-device smoke test)
+1. WAITING: user two-device smoke test of pair + transfer (not verifiable in CI)
 2. refactor(web): extract shared OsIcon component
 3. Stage 1 wrap-up: summary, then wait for Stage 2 approval
+
+## Carried to Stage 2
+
+- 0-byte files never complete on the receiver (totalChunks 0)
+- whole file held in memory on receive; 16MB buffer threshold near Chrome's send-queue cap
+- both sides call connect(): two "files" channels, last one wins
+- progress dispatches per 64KB chunk (render pressure on fast LANs)
+- register can take over another peer's id (needs a per-peer secret)
+- discovery is global, not per network
+- idb object URLs never revoked
 
 ## Half-done files
 

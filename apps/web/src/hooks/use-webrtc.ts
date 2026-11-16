@@ -1,105 +1,114 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { signalingClient } from "@/lib/signaling/ws-client";
-import {
-  handleSdp,
-  handleIce,
-  initiateConnection,
-  closeConnection,
-} from "@/lib/webrtc/peer-manager";
-import { sendFile, createReceiver } from "@/lib/webrtc/chunk-utils";
+import { useEffect, useMemo, useReducer, useRef } from "react";
+import { peerManager } from "@/lib/webrtc/peer-manager";
+import { createReceiver, sendFile } from "@/lib/webrtc/chunk-utils";
+import { activeTransfers, transfersReducer } from "@/lib/transfer/machine";
 import { saveTransfer } from "@/lib/store/idb";
 import { generateId } from "@/lib/utils";
-import type { TransferProgress } from "@kasip2p/shared";
 
+// React glue: binds peerManager + chunk-utils to the transfer reducer and history.
 export function useWebRTC(
   localPeerId: string,
   onTransferComplete?: () => void,
 ) {
-  const [progress, setProgress] = useState<Map<string, TransferProgress>>(
-    new Map(),
-  );
-  const dataChannels = useRef<Map<string, RTCDataChannel>>(new Map());
-  const onTransferCompleteRef = useRef(onTransferComplete);
+  const [state, dispatch] = useReducer(transfersReducer, {});
+  const onCompleteRef = useRef(onTransferComplete);
 
   useEffect(() => {
-    onTransferCompleteRef.current = onTransferComplete;
+    onCompleteRef.current = onTransferComplete;
   }, [onTransferComplete]);
-
-  function registerChannel(dc: RTCDataChannel, remotePeerId: string) {
-    dataChannels.current.set(remotePeerId, dc);
-
-    const receiver = createReceiver(
-      (p) => setProgress((prev) => new Map(prev).set(p.transferId, p)),
-      async (file, transferId) => {
-        await saveTransfer(
-          {
-            id: transferId,
-            fileName: file.name,
-            fileSize: file.size,
-            mimeType: file.type,
-            direction: "received",
-            peerId: remotePeerId,
-            peerName: remotePeerId,
-            completedAt: Date.now(),
-          },
-          file,
-        );
-        setProgress((prev) => {
-          const next = new Map(prev);
-          next.delete(transferId);
-          return next;
-        });
-        onTransferCompleteRef.current?.();
-      },
-    );
-
-    dc.onmessage = ({ data }) => receiver(data as ArrayBuffer | string);
-  }
 
   useEffect(() => {
     if (!localPeerId) return;
+    peerManager.start(localPeerId);
 
-    const cleanup = signalingClient.onMessage(async (msg) => {
-      switch (msg.type) {
-        case "sdp": {
-          await handleSdp(localPeerId, msg.fromId, msg.sdp, (dc) =>
-            registerChannel(dc, msg.fromId),
+    const receivers = new Map<string, ReturnType<typeof createReceiver>>();
+    const receiverFor = (remoteId: string) =>
+      createReceiver({
+        onStart: (meta) =>
+          dispatch({
+            type: "started",
+            at: Date.now(),
+            info: {
+              transferId: meta.transferId,
+              peerId: remoteId,
+              fileName: meta.name,
+              totalBytes: meta.size,
+              direction: "receiving",
+            },
+          }),
+        onProgress: (meta, transferredBytes) =>
+          dispatch({
+            type: "progressed",
+            transferId: meta.transferId,
+            transferredBytes,
+            at: Date.now(),
+          }),
+        onComplete: async (meta, file) => {
+          await saveTransfer(
+            {
+              id: meta.transferId,
+              fileName: file.name,
+              fileSize: file.size,
+              mimeType: file.type,
+              direction: "received",
+              peerId: remoteId,
+              peerName: remoteId,
+              completedAt: Date.now(),
+            },
+            file,
           );
-          break;
-        }
-        case "ice": {
-          await handleIce(localPeerId, msg.fromId, msg.candidate, (dc) =>
-            registerChannel(dc, msg.fromId),
-          );
-          break;
-        }
+          dispatch({ type: "completed", transferId: meta.transferId, at: Date.now() });
+          onCompleteRef.current?.();
+        },
+      });
+
+    peerManager.setMessageHandler((remoteId, data) => {
+      let receive = receivers.get(remoteId);
+      if (!receive) {
+        receive = receiverFor(remoteId);
+        receivers.set(remoteId, receive);
       }
+      receive(data);
     });
 
-    return () => cleanup();
+    return () => peerManager.setMessageHandler(null);
   }, [localPeerId]);
 
   function initiate(targetId: string) {
-    const dc = initiateConnection(localPeerId, targetId, (channel) =>
-      registerChannel(channel, targetId),
-    );
-    return dc;
+    peerManager.start(localPeerId);
+    peerManager.connect(targetId);
   }
 
   async function transfer(targetId: string, file: File) {
-    const dc = dataChannels.current.get(targetId);
-    if (!dc || dc.readyState !== "open") {
+    const dc = peerManager.getOpenChannel(targetId);
+    if (!dc) {
       console.error("data channel not open");
       return;
     }
 
     const transferId = generateId();
+    dispatch({
+      type: "started",
+      at: Date.now(),
+      info: {
+        transferId,
+        peerId: targetId,
+        fileName: file.name,
+        totalBytes: file.size,
+        direction: "sending",
+      },
+    });
 
-    await sendFile(dc, file, transferId, (p) =>
-      setProgress((prev) => new Map(prev).set(p.transferId, p)),
-    );
+    try {
+      await sendFile(dc, file, transferId, (transferredBytes) =>
+        dispatch({ type: "progressed", transferId, transferredBytes, at: Date.now() }),
+      );
+    } catch (err) {
+      dispatch({ type: "failed", transferId, reason: String(err) });
+      return;
+    }
 
     await saveTransfer({
       id: transferId,
@@ -111,20 +120,15 @@ export function useWebRTC(
       peerName: targetId,
       completedAt: Date.now(),
     });
-
-    onTransferCompleteRef.current?.();
-
-    setProgress((prev) => {
-      const next = new Map(prev);
-      next.delete(transferId);
-      return next;
-    });
+    dispatch({ type: "completed", transferId, at: Date.now() });
+    onCompleteRef.current?.();
   }
 
   function disconnect(peerId: string) {
-    closeConnection(peerId);
-    dataChannels.current.delete(peerId);
+    peerManager.close(peerId);
   }
 
-  return { progress, initiate, transfer, disconnect };
+  const transfers = useMemo(() => activeTransfers(state), [state]);
+
+  return { transfers, initiate, transfer, disconnect };
 }

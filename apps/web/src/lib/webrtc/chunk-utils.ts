@@ -1,81 +1,70 @@
-import type { TransferProgress } from "@kasip2p/shared";
+import { parsePeerMessage, type FileMeta, type PeerMessage } from "@kasip2p/shared";
 
-const CHUNK_SIZE = 64 * 1024; // 64KB per chunk
+export const CHUNK_SIZE = 64 * 1024;
+const MAX_BUFFERED = 16 * 1024 * 1024;
+
+// The subset of RTCDataChannel the transfer code needs; lets tests use a fake.
+export interface ChunkSink {
+  send(data: string | ArrayBuffer): void;
+  readonly bufferedAmount: number;
+}
+
+export interface SendableFile {
+  name: string;
+  type: string;
+  size: number;
+  slice(start: number, end: number): Blob;
+}
 
 export async function sendFile(
-  dc: RTCDataChannel,
-  file: File,
+  sink: ChunkSink,
+  file: SendableFile,
   transferId: string,
-  onProgress: (progress: TransferProgress) => void,
+  onProgress: (transferredBytes: number) => void,
 ) {
-  const totalBytes = file.size;
-  let transferredBytes = 0;
-  const startTime = Date.now();
-
-  // send file metadata first so receiver knows what to expect
-  dc.send(
-    JSON.stringify({
-      type: "file-meta",
-      transferId,
-      name: file.name,
-      size: file.size,
-      mimeType: file.type,
-      totalChunks: Math.ceil(file.size / CHUNK_SIZE),
-    }),
-  );
+  const meta: PeerMessage = {
+    type: "file-meta",
+    transferId,
+    name: file.name,
+    size: file.size,
+    mimeType: file.type,
+    totalChunks: Math.ceil(file.size / CHUNK_SIZE),
+  };
+  sink.send(JSON.stringify(meta));
 
   let offset = 0;
-
   while (offset < file.size) {
-    // back-pressure: wait if buffer is filling up
-    if (dc.bufferedAmount > 16 * 1024 * 1024) {
+    if (sink.bufferedAmount > MAX_BUFFERED) {
       await new Promise((r) => setTimeout(r, 50));
       continue;
     }
-
-    const slice = file.slice(offset, offset + CHUNK_SIZE);
-    const buffer = await slice.arrayBuffer();
-    dc.send(buffer);
-
+    const buffer = await file.slice(offset, offset + CHUNK_SIZE).arrayBuffer();
+    sink.send(buffer);
     offset += buffer.byteLength;
-    transferredBytes += buffer.byteLength;
-
-    const elapsed = (Date.now() - startTime) / 1000;
-    const speedMBps = transferredBytes / elapsed / 1024 / 1024;
-
-    onProgress({
-      transferId,
-      fileName: file.name,
-      totalBytes,
-      transferredBytes,
-      speedMBps,
-      direction: "sending",
-    });
+    onProgress(offset);
   }
 }
 
-export function createReceiver(
-  onProgress: (progress: TransferProgress) => void,
-  onComplete: (file: File, transferId: string) => void,
-) {
-  let meta: {
-    transferId: string;
-    name: string;
-    size: number;
-    mimeType: string;
-    totalChunks: number;
-  } | null = null;
+export interface ReceiverCallbacks {
+  onStart(meta: FileMeta): void;
+  onProgress(meta: FileMeta, transferredBytes: number): void;
+  onComplete(meta: FileMeta, file: File): void;
+}
 
-  const chunks: ArrayBuffer[] = [];
-  const startTime = { value: Date.now() };
+// One receiver per channel; handles one file at a time in arrival order.
+export function createReceiver(callbacks: ReceiverCallbacks) {
+  let meta: FileMeta | null = null;
+  let chunks: ArrayBuffer[] = [];
+  let received = 0;
 
-  return function handleChunk(data: ArrayBuffer | string) {
+  return function handleData(data: string | ArrayBuffer) {
     if (typeof data === "string") {
-      const msg = JSON.parse(data);
-      if (msg.type === "file-meta") {
+      const msg = parsePeerMessage(data);
+      if (msg?.type === "file-meta") {
         meta = msg;
-        startTime.value = Date.now();
-        chunks.length = 0;
+        chunks = [];
+        received = 0;
+        callbacks.onStart(msg);
       }
       return;
     }
@@ -83,26 +72,15 @@ export function createReceiver(
     if (!meta) return;
 
     chunks.push(data);
-
-    const transferredBytes = chunks.reduce((acc, c) => acc + c.byteLength, 0);
-    const elapsed = (Date.now() - startTime.value) / 1000;
-    const speedMBps = transferredBytes / elapsed / 1024 / 1024;
-
-    onProgress({
-      transferId: meta.transferId,
-      fileName: meta.name,
-      totalBytes: meta.size,
-      transferredBytes,
-      speedMBps,
-      direction: "receiving",
-    });
+    received += data.byteLength;
+    callbacks.onProgress(meta, received);
 
     if (chunks.length === meta.totalChunks) {
-      const blob = new Blob(chunks, { type: meta.mimeType });
-      const file = new File([blob], meta.name, { type: meta.mimeType });
-      onComplete(file, meta.transferId);
+      const file = new File(chunks, meta.name, { type: meta.mimeType });
+      const done = meta;
       meta = null;
-      chunks.length = 0;
+      chunks = [];
+      callbacks.onComplete(done, file);
     }
   };
 }

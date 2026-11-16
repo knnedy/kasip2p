@@ -66,7 +66,7 @@ export default function TransferPage() {
   const { peers } = usePeers(localPeerId);
   const targetPeer = peers.find((p) => p.meta.peerId === targetId);
 
-  const { progress, initiate, transfer } = useWebRTC(localPeerId, () => {
+  const { transfers, initiate, transfer } = useWebRTC(localPeerId, () => {
     queryClient.invalidateQueries({ queryKey: ["transfers"] });
   });
 
@@ -79,7 +79,7 @@ export default function TransferPage() {
   useEffect(() => {
     if (!localPeerId || !targetId || initiated.current) return;
     initiated.current = true;
-    void initiate(targetId);
+    initiate(targetId);
   }, [localPeerId, targetId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: history = [] } = useQuery({
@@ -98,7 +98,7 @@ export default function TransferPage() {
     handleFiles(e.dataTransfer.files);
   }
 
-  const activeTransfers = Array.from(progress.values());
+  const activeTransfers = transfers;
   const peerHistory = history.filter((h) => h.record.peerId === targetId);
 
   return (
