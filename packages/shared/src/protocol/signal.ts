@@ -8,7 +8,7 @@ export const peerSecretSchema = z.string().regex(/^[0-9a-f]{32,128}$/);
 
 export const sdpSchema = z.object({
   type: z.enum(["offer", "answer", "pranswer", "rollback"]),
-  sdp: z.string().max(100_000),
+  sdp: z.string().max(32_000),
 });
 
 export const iceCandidateSchema = z.object({

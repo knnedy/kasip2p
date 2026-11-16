@@ -8,3 +8,5 @@ services:
     envVars:
       - key: PORT
         value: 3001
+      - key: ALLOWED_ORIGINS
+        sync: false

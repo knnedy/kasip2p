@@ -67,7 +67,7 @@ describe("parseClientMessage", () => {
       JSON.stringify({
         type: "sdp",
         targetId: "abc",
-        sdp: { type: "offer", sdp: "x".repeat(100_001) },
+        sdp: { type: "offer", sdp: "x".repeat(32_001) },
       }),
     );
     expect(result.ok).toBe(false);

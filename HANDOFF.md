@@ -16,7 +16,7 @@ Current: Stage 2 (reliability + security) on `feat/reliability-security`.
 
 - [x] chore pre-plan: fix(web) dev origins from env; chore(claude) project settings
 - [x] 1. feat(shared): add register secret and ping/pong
-- [ ] 2. fix(signaling): limit message size and check origin
+- [x] 2. fix(signaling): limit message size and check origin
 - [ ] 3. feat(signaling): harden PIN pairing
 - [ ] 4. feat(signaling): heartbeat and stale-peer cleanup
 - [ ] 5. fix(signaling): bind peer id to its owner
@@ -34,9 +34,9 @@ Current: Stage 2 (reliability + security) on `feat/reliability-security`.
 
 ## Next 3 steps
 
-1. fix(signaling): limit message size and check origin
-2. feat(signaling): harden PIN pairing
-3. feat(signaling): heartbeat and stale-peer cleanup
+1. feat(signaling): harden PIN pairing
+2. feat(signaling): heartbeat and stale-peer cleanup
+3. fix(signaling): bind peer id to its owner
 
 ## Half-done files
 
