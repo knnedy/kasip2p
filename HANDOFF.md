@@ -19,12 +19,13 @@ Working log for the staged refactor on `refactor/architecture`.
 - build(shared): consume shared as source; bundle signaling
 - build(repo): add vitest
 - docs(repo): fix README setup and add .env.example
+- ci: add typecheck, lint, test, build workflow (not yet run on GitHub; nothing pushed)
 
 ## Next 3 steps
 
-1. ci: add typecheck, lint, test, build workflow
-2. feat(shared): add zod signaling protocol
-3. refactor(signaling): validate inbound messages with shared protocol
+1. feat(shared): add zod signaling protocol
+2. refactor(signaling): validate inbound messages with shared protocol
+3. refactor(web): validate signaling messages in ws-client
 
 ## Half-done files
 
