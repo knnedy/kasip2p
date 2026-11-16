@@ -4,7 +4,7 @@ import {
   type ErrorCode,
   type ServerMessage,
 } from "@kasip2p/shared";
-import { PairingRegistry } from "./pairing.ts";
+import { PairingRegistry, type PairingOptions } from "./pairing.ts";
 import { PeerRegistry } from "./peer-registry.ts";
 
 export interface Connection {
@@ -15,8 +15,17 @@ export interface Connection {
 // Transport-agnostic signaling logic; index.ts wires it to ws.
 export class SignalingHub {
   private peers = new PeerRegistry<Connection>();
-  private pairing = new PairingRegistry();
+  private pairing: PairingRegistry;
   private peerIdOf = new Map<Connection, string>();
+
+  constructor(opts: { pairing?: PairingOptions } = {}) {
+    this.pairing = new PairingRegistry(opts.pairing);
+  }
+
+  // Periodic housekeeping, driven by the server's timer.
+  sweep() {
+    this.pairing.sweep();
+  }
 
   handleRaw(conn: Connection, raw: string) {
     const parsed = parseClientMessage(raw);
@@ -64,14 +73,24 @@ export class SignalingHub {
           this.error(conn, "unauthorized", "no pair request from that peer");
         }
         break;
-      case "pair-confirm":
-        if (!this.pairing.confirm(fromId, msg.targetId, msg.pin)) {
+      case "pair-confirm": {
+        const result = this.pairing.confirm(fromId, msg.targetId, msg.pin);
+        if (result === "incorrect") {
           this.error(conn, "incorrect-pin", "incorrect PIN");
-          break;
+        } else if (result === "expired" || result === "locked") {
+          this.error(
+            conn,
+            result === "expired" ? "pin-expired" : "too-many-attempts",
+            result === "expired" ? "PIN expired" : "too many incorrect PINs",
+          );
+          // the approver's PIN is now void; close its pairing screen
+          this.forward(conn, msg.targetId, { type: "pair-reject", fromId });
+        } else {
+          this.forward(conn, msg.targetId, { type: "pair-accept", fromId });
+          conn.send({ type: "pair-accept", fromId: msg.targetId });
         }
-        this.forward(conn, msg.targetId, { type: "pair-accept", fromId });
-        conn.send({ type: "pair-accept", fromId: msg.targetId });
         break;
+      }
       case "pair-reject":
         this.pairing.unpair(fromId, msg.targetId);
         this.forward(conn, msg.targetId, { type: "pair-reject", fromId });

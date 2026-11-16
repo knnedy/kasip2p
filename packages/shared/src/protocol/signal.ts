@@ -52,6 +52,8 @@ export const errorCodeSchema = z.enum([
   "not-registered",
   "peer-unreachable",
   "incorrect-pin",
+  "pin-expired",
+  "too-many-attempts",
   "unauthorized",
 ]);
 export type ErrorCode = z.infer<typeof errorCodeSchema>;

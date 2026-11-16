@@ -115,6 +115,57 @@ describe("SignalingHub", () => {
     expect(a.last()).toMatchObject({ type: "error", code: "incorrect-pin" });
   });
 
+  describe("PIN hardening", () => {
+    let now: number;
+    beforeEach(() => {
+      now = 0;
+      hub = new SignalingHub({ pairing: { now: () => now, ttlMs: 1_000, maxAttempts: 3 } });
+      a = new FakeConn();
+      b = new FakeConn();
+      register(hub, a, "alice");
+      register(hub, b, "bob");
+      send(hub, a, { type: "pair-request", targetId: "bob" });
+      send(hub, b, { type: "pair-pin", targetId: "alice", pin: "1234" });
+    });
+
+    const confirm = (pin: string) =>
+      send(hub, a, { type: "pair-confirm", targetId: "bob", pin });
+
+    it("rejects an expired PIN and tells the approver", () => {
+      now = 1_000;
+      confirm("1234");
+      expect(a.last()).toMatchObject({ type: "error", code: "pin-expired" });
+      expect(b.last()).toEqual({ type: "pair-reject", fromId: "alice" });
+    });
+
+    it("locks after too many wrong PINs, even if the next one is right", () => {
+      confirm("0000");
+      confirm("0000");
+      expect(a.last()).toMatchObject({ code: "incorrect-pin" });
+      confirm("0000");
+      expect(a.last()).toMatchObject({ code: "too-many-attempts" });
+      expect(b.last()).toEqual({ type: "pair-reject", fromId: "alice" });
+      confirm("1234");
+      expect(a.last()).toMatchObject({ code: "incorrect-pin" });
+      expect(b.ofType("pair-accept")).toHaveLength(0);
+    });
+
+    it("refuses a PIN for a request that has expired", () => {
+      send(hub, a, { type: "pair-request", targetId: "bob" });
+      now = 1_001;
+      send(hub, b, { type: "pair-pin", targetId: "alice", pin: "5678" });
+      expect(b.last()).toMatchObject({ type: "error", code: "unauthorized" });
+    });
+
+    it("sweep drops expired state", () => {
+      now = 2_000;
+      hub.sweep();
+      now = 0;
+      confirm("1234");
+      expect(a.last()).toMatchObject({ code: "incorrect-pin" });
+    });
+  });
+
   it("relays sdp and ice only between paired peers", () => {
     send(hub, a, { type: "sdp", targetId: "bob", sdp: { type: "offer", sdp: "v=0" } });
     expect(b.ofType("sdp")).toHaveLength(0);

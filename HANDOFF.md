@@ -17,7 +17,7 @@ Current: Stage 2 (reliability + security) on `feat/reliability-security`.
 - [x] chore pre-plan: fix(web) dev origins from env; chore(claude) project settings
 - [x] 1. feat(shared): add register secret and ping/pong
 - [x] 2. fix(signaling): limit message size and check origin
-- [ ] 3. feat(signaling): harden PIN pairing
+- [x] 3. feat(signaling): harden PIN pairing
 - [ ] 4. feat(signaling): heartbeat and stale-peer cleanup
 - [ ] 5. fix(signaling): bind peer id to its owner
 - [ ] 6. feat(signaling): scope discovery by network
@@ -34,13 +34,13 @@ Current: Stage 2 (reliability + security) on `feat/reliability-security`.
 
 ## Next 3 steps
 
-1. feat(signaling): harden PIN pairing
-2. feat(signaling): heartbeat and stale-peer cleanup
-3. fix(signaling): bind peer id to its owner
+1. feat(signaling): heartbeat and stale-peer cleanup
+2. fix(signaling): bind peer id to its owner
+3. feat(signaling): scope discovery by network
 
 ## Half-done files
 
-- none
+- pair page ignores pin-expired/too-many-attempts errors until step 8
 
 ## Stage 1 (done, merged)
 
