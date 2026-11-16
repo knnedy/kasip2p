@@ -4,6 +4,11 @@ import { rtcConfig } from "./ice-config";
 
 const MAX_ICE_RESTARTS = 3;
 
+// Deterministic so both sides agree without extra signaling, even after a reload.
+export function isInitiator(localId: string, remoteId: string): boolean {
+  return localId < remoteId;
+}
+
 export type ChannelData = string | ArrayBuffer;
 type MessageHandler = (remoteId: string, data: ChannelData) => void;
 
@@ -27,7 +32,11 @@ class PeerManager {
     });
   }
 
+  // Only the smaller id opens the channel; the other side receives it via ondatachannel.
   connect(remoteId: string) {
+    if (!isInitiator(this.localId, remoteId)) return;
+    const existing = this.channels.get(remoteId);
+    if (existing && existing.readyState !== "closed") return;
     const pc = this.ensureConnection(remoteId);
     this.attachChannel(remoteId, pc.createDataChannel("files", { ordered: true }));
   }

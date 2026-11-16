@@ -24,7 +24,7 @@ Current: Stage 2 (reliability + security) on `feat/reliability-security`.
 - [x] 7. feat(web): resilient ws-client
 - [x] 8. feat(web): generate 6-digit PIN with crypto
 - [x] 9. feat(web): configurable ICE servers and ICE restart
-- [ ] 10. fix(web): open a single data channel per pair (two-device check)
+- [x] 10. fix(web): open a single data channel per pair (two-device check)
 - [ ] 11. perf(web): throttle progress updates
 - [ ] 12. perf(web): event-driven backpressure and adaptive chunk size (two-device check)
 - [ ] 13. fix(web): complete zero-byte transfers
@@ -34,13 +34,13 @@ Current: Stage 2 (reliability + security) on `feat/reliability-security`.
 
 ## Next 3 steps
 
-1. fix(web): open a single data channel per pair (two-device check)
-2. perf(web): throttle progress updates
-3. perf(web): event-driven backpressure and adaptive chunk size (two-device check)
+1. perf(web): throttle progress updates
+2. perf(web): event-driven backpressure and adaptive chunk size (two-device check)
+3. fix(web): complete zero-byte transfers
 
 ## Half-done files
 
-- verify TRUST_PROXY/XFF behaviour on Render after deploy
+- WAITING on two-device check of steps 1-10; verify TRUST_PROXY/XFF on Render after deploy
 
 ## Stage 1 (done, merged)
 
