@@ -5,6 +5,7 @@ import {
   type ServerMessage,
 } from "@kasip2p/shared";
 import { PairingRegistry, type PairingOptions } from "./pairing.ts";
+import { OwnershipRegistry } from "./ownership.ts";
 import { PeerRegistry } from "./peer-registry.ts";
 
 export interface Connection {
@@ -16,15 +17,21 @@ export interface Connection {
 export class SignalingHub {
   private peers = new PeerRegistry<Connection>();
   private pairing: PairingRegistry;
+  private owners: OwnershipRegistry;
   private peerIdOf = new Map<Connection, string>();
 
-  constructor(opts: { pairing?: PairingOptions } = {}) {
-    this.pairing = new PairingRegistry(opts.pairing);
+  constructor(
+    opts: { now?: () => number; ownerGraceMs?: number; pairing?: PairingOptions } = {},
+  ) {
+    const now = opts.now ?? Date.now;
+    this.pairing = new PairingRegistry({ now, ...opts.pairing });
+    this.owners = new OwnershipRegistry(now, opts.ownerGraceMs ?? 10 * 60_000);
   }
 
   // Periodic housekeeping, driven by the server's timer.
   sweep() {
     this.pairing.sweep();
+    this.owners.sweep();
   }
 
   handleRaw(conn: Connection, raw: string) {
@@ -40,6 +47,7 @@ export class SignalingHub {
     const peerId = this.peerIdOf.get(conn);
     this.peerIdOf.delete(conn);
     if (!peerId || !this.peers.remove(peerId, conn)) return;
+    this.owners.release(peerId);
     this.pairing.removePeer(peerId);
     this.broadcastPeerList();
   }
@@ -51,9 +59,13 @@ export class SignalingHub {
     }
 
     if (msg.type === "register") {
+      if (!this.owners.claim(msg.meta.peerId, msg.secret)) {
+        this.error(conn, "peer-id-taken", "peer id belongs to another device");
+        return;
+      }
       const previous = this.peerIdOf.get(conn);
-      if (previous && previous !== msg.meta.peerId) {
-        this.peers.remove(previous, conn);
+      if (previous && previous !== msg.meta.peerId && this.peers.remove(previous, conn)) {
+        this.owners.release(previous);
         this.pairing.removePeer(previous);
       }
       this.peerIdOf.set(conn, msg.meta.peerId);

@@ -50,6 +50,7 @@ export type ClientMessage = z.infer<typeof clientMessageSchema>;
 export const errorCodeSchema = z.enum([
   "invalid-message",
   "not-registered",
+  "peer-id-taken",
   "peer-unreachable",
   "incorrect-pin",
   "pin-expired",

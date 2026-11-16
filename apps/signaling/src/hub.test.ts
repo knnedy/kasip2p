@@ -85,6 +85,43 @@ describe("SignalingHub", () => {
     expect(stranger.last()).toMatchObject({ type: "error", code: "not-registered" });
   });
 
+  describe("peer id ownership", () => {
+    let now: number;
+    beforeEach(() => {
+      now = 0;
+      hub = new SignalingHub({ now: () => now, ownerGraceMs: 1_000 });
+      a = new FakeConn();
+      register(hub, a, "alice");
+    });
+
+    it("refuses another device registering a live peer id", () => {
+      const mallory = new FakeConn();
+      register(hub, mallory, "alice", "b".repeat(32));
+      expect(mallory.last()).toMatchObject({ type: "error", code: "peer-id-taken" });
+      const bob = new FakeConn();
+      register(hub, bob, "bob");
+      send(hub, bob, { type: "pair-request", targetId: "alice" });
+      expect(a.last()).toEqual({ type: "pair-request", fromId: "bob" });
+    });
+
+    it("lets the owner reclaim its id after a reload", () => {
+      hub.handleClose(a);
+      const reloaded = new FakeConn();
+      register(hub, reloaded, "alice");
+      expect(reloaded.last()).toMatchObject({ type: "peer-list" });
+    });
+
+    it("keeps the id reserved during the grace period, then frees it", () => {
+      hub.handleClose(a);
+      const other = new FakeConn();
+      register(hub, other, "alice", "b".repeat(32));
+      expect(other.last()).toMatchObject({ code: "peer-id-taken" });
+      now = 1_000;
+      register(hub, other, "alice", "b".repeat(32));
+      expect(other.last()).toMatchObject({ type: "peer-list" });
+    });
+  });
+
   it("stamps fromId from the socket, ignoring a spoofed one", () => {
     send(hub, a, { type: "pair-request", fromId: "mallory", targetId: "bob" });
     expect(b.last()).toEqual({ type: "pair-request", fromId: "alice" });
