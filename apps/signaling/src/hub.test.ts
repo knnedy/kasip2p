@@ -1,6 +1,6 @@
 import type { ServerMessage } from "@kasip2p/shared";
 import { beforeEach, describe, expect, it } from "vitest";
-import { SignalingHub, type Connection } from "./hub.js";
+import { SignalingHub, type Connection } from "./hub.ts";
 
 class FakeConn implements Connection {
   inbox: ServerMessage[] = [];

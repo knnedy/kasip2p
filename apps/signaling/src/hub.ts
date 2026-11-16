@@ -4,8 +4,8 @@ import {
   type ErrorCode,
   type ServerMessage,
 } from "@kasip2p/shared";
-import { PairingRegistry } from "./pairing.js";
-import { PeerRegistry } from "./peer-registry.js";
+import { PairingRegistry } from "./pairing.ts";
+import { PeerRegistry } from "./peer-registry.ts";
 
 export interface Connection {
   send(msg: ServerMessage): void;

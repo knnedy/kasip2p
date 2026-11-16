@@ -23,6 +23,7 @@ Working log for the staged refactor on `refactor/architecture`.
 - feat(shared): add zod signaling protocol (ClientMessage has no fromId; server stamps it)
 - refactor(signaling): validate messages and stamp fromId (hub/pairing/peer-registry split, 11 tests)
 - fix(signaling): bind PIN to the device that received the pair request
+- build(shared): import with .ts extensions (Turbopack can't map .js -> .ts in shared source)
 
 ## Next 3 steps
 

@@ -1,7 +1,7 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { WebSocket, WebSocketServer } from "ws";
-import { SignalingHub, type Connection } from "./hub.js";
+import { SignalingHub, type Connection } from "./hub.ts";
 
 const app = new Hono();
 const wss = new WebSocketServer({ noServer: true });

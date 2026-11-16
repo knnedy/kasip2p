@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { peerIdSchema, peerMetaSchema } from "../domain.js";
+import { peerIdSchema, peerMetaSchema } from "../domain.ts";
 
 export const pinSchema = z.string().regex(/^\d{4,8}$/);
 

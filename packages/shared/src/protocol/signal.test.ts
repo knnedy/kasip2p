@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseClientMessage, parseServerMessage } from "./signal.js";
+import { parseClientMessage, parseServerMessage } from "./signal.ts";
 
 const meta = {
   peerId: "3f2b9c1e-0000-4000-8000-000000000000",

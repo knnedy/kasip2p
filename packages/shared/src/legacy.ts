@@ -1,4 +1,4 @@
-import type { PeerMeta } from "./domain.js";
+import type { PeerMeta } from "./domain.ts";
 
 /**
  * @deprecated Pre-validation wire format. Use ClientMessage / ServerMessage.

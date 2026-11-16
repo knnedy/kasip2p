@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePeerMessage } from "./peer.js";
+import { parsePeerMessage } from "./peer.ts";
 
 describe("parsePeerMessage", () => {
   it("parses file-meta", () => {
