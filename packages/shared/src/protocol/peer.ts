@@ -11,7 +11,18 @@ export const fileMetaSchema = z.object({
 });
 export type FileMeta = z.infer<typeof fileMetaSchema>;
 
-export const peerMessageSchema = z.discriminatedUnion("type", [fileMetaSchema]);
+// Receiver's reply to file-meta: how many bytes it already has (0 = start fresh).
+export const fileAcceptSchema = z.object({
+  type: z.literal("file-accept"),
+  transferId: z.string().min(1).max(64),
+  offset: z.number().int().min(0),
+});
+export type FileAccept = z.infer<typeof fileAcceptSchema>;
+
+export const peerMessageSchema = z.discriminatedUnion("type", [
+  fileMetaSchema,
+  fileAcceptSchema,
+]);
 export type PeerMessage = z.infer<typeof peerMessageSchema>;
 
 export function parsePeerMessage(raw: string): PeerMessage | null {
