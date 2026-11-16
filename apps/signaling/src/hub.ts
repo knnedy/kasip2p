@@ -45,6 +45,11 @@ export class SignalingHub {
   }
 
   private handle(conn: Connection, msg: ClientMessage) {
+    if (msg.type === "ping") {
+      conn.send({ type: "pong" });
+      return;
+    }
+
     if (msg.type === "register") {
       const previous = this.peerIdOf.get(conn);
       if (previous && previous !== msg.meta.peerId) {

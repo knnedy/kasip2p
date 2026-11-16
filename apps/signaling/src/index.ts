@@ -6,12 +6,14 @@ import {
   MAX_PAYLOAD_BYTES,
   parseAllowedOrigins,
 } from "./config.ts";
+import { startHeartbeat } from "./heartbeat.ts";
 import { SignalingHub, type Connection } from "./hub.ts";
 
 const app = new Hono();
 const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES });
 const hub = new SignalingHub();
 setInterval(() => hub.sweep(), 30_000).unref();
+startHeartbeat(wss, Number(process.env["HEARTBEAT_MS"] ?? 30_000));
 const allowedOrigins = parseAllowedOrigins(process.env["ALLOWED_ORIGINS"]);
 
 app.get("/ping", (c) => c.text("kasip2p signaling online"));

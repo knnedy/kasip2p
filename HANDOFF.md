@@ -18,7 +18,7 @@ Current: Stage 2 (reliability + security) on `feat/reliability-security`.
 - [x] 1. feat(shared): add register secret and ping/pong
 - [x] 2. fix(signaling): limit message size and check origin
 - [x] 3. feat(signaling): harden PIN pairing
-- [ ] 4. feat(signaling): heartbeat and stale-peer cleanup
+- [x] 4. feat(signaling): heartbeat and stale-peer cleanup
 - [ ] 5. fix(signaling): bind peer id to its owner
 - [ ] 6. feat(signaling): scope discovery by network
 - [ ] 7. feat(web): resilient ws-client
@@ -34,9 +34,9 @@ Current: Stage 2 (reliability + security) on `feat/reliability-security`.
 
 ## Next 3 steps
 
-1. feat(signaling): heartbeat and stale-peer cleanup
-2. fix(signaling): bind peer id to its owner
-3. feat(signaling): scope discovery by network
+1. fix(signaling): bind peer id to its owner
+2. feat(signaling): scope discovery by network
+3. feat(web): resilient ws-client
 
 ## Half-done files
 

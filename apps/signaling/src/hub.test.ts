@@ -68,6 +68,12 @@ describe("SignalingHub", () => {
     });
   });
 
+  it("answers ping with pong, even before register", () => {
+    const fresh = new FakeConn();
+    send(hub, fresh, { type: "ping" });
+    expect(fresh.last()).toEqual({ type: "pong" });
+  });
+
   it("rejects invalid messages with a typed error", () => {
     send(hub, a, { type: "pair-request" });
     expect(a.last()).toMatchObject({ type: "error", code: "invalid-message" });
