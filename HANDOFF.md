@@ -18,12 +18,13 @@ Working log for the staged refactor on `refactor/architecture`.
 - build(repo): add typecheck, lint, build scripts
 - build(shared): consume shared as source; bundle signaling
 - build(repo): add vitest
+- docs(repo): fix README setup and add .env.example
 
 ## Next 3 steps
 
-1. docs(repo): fix README setup and add .env.example
-2. ci: add typecheck, lint, build workflow
-3. feat(shared): add zod signaling protocol
+1. ci: add typecheck, lint, test, build workflow
+2. feat(shared): add zod signaling protocol
+3. refactor(signaling): validate inbound messages with shared protocol
 
 ## Half-done files
 

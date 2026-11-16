@@ -19,7 +19,7 @@ File data never leaves your network. The signaling server only handles the initi
 
 | Concern          | Choice                   |
 | ---------------- | ------------------------ |
-| Frontend         | Next.js 14 App Router    |
+| Frontend         | Next.js 16 App Router    |
 | Styling          | Tailwind CSS + shadcn/ui |
 | Language         | TypeScript throughout    |
 | P2P protocol     | WebRTC RTCDataChannel    |
@@ -71,8 +71,8 @@ kasip2p/
 
 ### Prerequisites
 
-- Node.js 20+
-- pnpm 9+
+- Node.js 22.18+
+- pnpm 12 (`corepack enable` picks up the version pinned in `package.json`)
 
 ### Setup
 
@@ -82,11 +82,15 @@ cd kasip2p
 pnpm install
 ```
 
+Run `pnpm install` from the repo root only; the workspace has a single lockfile.
+
 ### Environment variables
 
 ```bash
-cp apps/web/.env.local
+cp apps/web/.env.example apps/web/.env.local
 ```
+
+The signaling server reads `PORT` from the environment (default `3001`); see `apps/signaling/.env.example`.
 
 Open `apps/web/.env.local` and set:
 
@@ -106,6 +110,21 @@ This starts both the Next.js app on `http://localhost:3000` and the signaling se
 
 Open `http://localhost:3000` on your laptop and `http://<your-lan-ip>:3000` on any other device on the same network.
 
+### Checks
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm build
+```
+
+CI runs the same commands on every push and pull request.
+
+### How packages consume `@kasip2p/shared`
+
+`packages/shared` ships TypeScript source with no build step. The web app compiles it via `transpilePackages`; the signaling server bundles it into `dist/index.js` with tsup.
+
 ## Deployment
 
 ### Signaling server → Render
@@ -117,9 +136,9 @@ Open `http://localhost:3000` on your laptop and `http://<your-lan-ip>:3000` on a
 ### Web app → Vercel
 
 1. Import your GitHub repo on [vercel.com](https://vercel.com)
-2. Vercel auto-detects `vercel.json` and configures the build
+2. Set the project's Root Directory to `apps/web` (Vercel detects Next.js and pnpm)
 3. Add this environment variable in the Vercel dashboard:
-   NEXT_PUBLIC_SIGNAL_URL=wss://<your-render-url>
+   `NEXT_PUBLIC_SIGNAL_URL=wss://<your-render-url>`
 
 ## Security
 
