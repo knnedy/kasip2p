@@ -18,14 +18,14 @@ export class OwnershipRegistry {
     private graceMs: number,
   ) {}
 
-  claim(peerId: string, secret: string): boolean {
+  // "returning": same owner within grace; "new": first claim or the old owner's grace ended.
+  claim(peerId: string, secret: string): "taken" | "returning" | "new" {
     const hash = hashSecret(secret);
     const owner = this.owners.get(peerId);
-    if (owner && !this.expired(owner) && !timingSafeEqual(owner.hash, hash)) {
-      return false;
-    }
+    const live = owner !== undefined && !this.expired(owner);
+    if (live && !timingSafeEqual(owner.hash, hash)) return "taken";
     this.owners.set(peerId, { hash, releasedAt: null });
-    return true;
+    return live ? "returning" : "new";
   }
 
   release(peerId: string) {
@@ -33,10 +33,15 @@ export class OwnershipRegistry {
     if (owner) owner.releasedAt = this.now();
   }
 
-  sweep() {
+  // Returns ids whose grace ended, so callers can drop state tied to them.
+  sweep(): string[] {
+    const expired: string[] = [];
     for (const [peerId, owner] of this.owners) {
-      if (this.expired(owner)) this.owners.delete(peerId);
+      if (!this.expired(owner)) continue;
+      this.owners.delete(peerId);
+      expired.push(peerId);
     }
+    return expired;
   }
 
   private expired(owner: Owner) {

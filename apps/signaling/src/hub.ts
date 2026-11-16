@@ -33,7 +33,7 @@ export class SignalingHub {
   // Periodic housekeeping, driven by the server's timer.
   sweep() {
     this.pairing.sweep();
-    this.owners.sweep();
+    for (const peerId of this.owners.sweep()) this.pairing.removePeer(peerId);
   }
 
   handleRaw(conn: Connection, raw: string) {
@@ -49,8 +49,9 @@ export class SignalingHub {
     const peerId = this.peerIdOf.get(conn);
     this.peerIdOf.delete(conn);
     if (!peerId || !this.peers.remove(peerId, conn)) return;
+    // pairings outlive the socket for the ownership grace, so a blip needs no re-pairing
     this.owners.release(peerId);
-    this.pairing.removePeer(peerId);
+    this.pairing.removePending(peerId);
     this.broadcastPeerList();
   }
 
@@ -61,10 +62,13 @@ export class SignalingHub {
     }
 
     if (msg.type === "register") {
-      if (!this.owners.claim(msg.meta.peerId, msg.secret)) {
+      const claim = this.owners.claim(msg.meta.peerId, msg.secret);
+      if (claim === "taken") {
         this.error(conn, "peer-id-taken", "peer id belongs to another device");
         return;
       }
+      // a new owner must not inherit pairings left by a previous one
+      if (claim === "new") this.pairing.removePeer(msg.meta.peerId);
       const previous = this.peerIdOf.get(conn);
       if (previous && previous !== msg.meta.peerId && this.peers.remove(previous, conn)) {
         this.owners.release(previous);

@@ -270,7 +270,7 @@ describe("SignalingHub", () => {
     expect(a.last()).toMatchObject({ type: "error", code: "peer-unreachable" });
   });
 
-  it("drops the peer and its pairings on close", () => {
+  it("drops the peer from the list on close but keeps the pairing for its owner", () => {
     pair();
     hub.handleClose(b);
     expect(a.last()).toEqual({
@@ -280,7 +280,41 @@ describe("SignalingHub", () => {
     const b2 = new FakeConn();
     register(hub, b2, "bob");
     send(hub, a, { type: "sdp", targetId: "bob", sdp: { type: "offer", sdp: "v=0" } });
-    expect(a.last()).toMatchObject({ type: "error", code: "unauthorized" });
+    expect(b2.last()).toMatchObject({ type: "sdp", fromId: "alice" });
+  });
+
+  describe("pairing after the grace period", () => {
+    let now: number;
+    beforeEach(() => {
+      now = 0;
+      hub = new SignalingHub({ now: () => now, ownerGraceMs: 1_000 });
+      a = new FakeConn();
+      b = new FakeConn();
+      register(hub, a, "alice");
+      register(hub, b, "bob");
+      pair();
+      hub.handleClose(b);
+      now = 1_000;
+    });
+
+    const sdpFromAlice = () =>
+      send(hub, a, { type: "sdp", targetId: "bob", sdp: { type: "offer", sdp: "v=0" } });
+
+    it("is not inherited by a new owner of the id", () => {
+      const imposter = new FakeConn();
+      register(hub, imposter, "bob", "c".repeat(32));
+      sdpFromAlice();
+      expect(a.last()).toMatchObject({ type: "error", code: "unauthorized" });
+      expect(imposter.ofType("sdp")).toHaveLength(0);
+    });
+
+    it("is dropped by sweep", () => {
+      hub.sweep();
+      const b2 = new FakeConn();
+      register(hub, b2, "bob");
+      sdpFromAlice();
+      expect(a.last()).toMatchObject({ type: "error", code: "unauthorized" });
+    });
   });
 
   it("keeps a refreshed socket when the old one closes late", () => {

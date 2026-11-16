@@ -93,6 +93,11 @@ export class PairingRegistry {
     for (const key of this.active) {
       if (key.split(":").includes(peerId)) this.active.delete(key);
     }
+    this.removePending(peerId);
+  }
+
+  // Drops in-flight requests/PINs only; active pairings survive a reconnect.
+  removePending(peerId: string) {
     for (const store of [this.requests, this.pendingPins] as const) {
       for (const key of store.keys()) {
         if (key.split(">").includes(peerId)) store.delete(key);

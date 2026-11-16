@@ -30,16 +30,21 @@ Current: Stage 2 (reliability + security) on `feat/reliability-security`.
 - [x] 13. fix(web): complete zero-byte transfers
 - [x] 14. feat(web): stream received files to disk
 - [ ] 15. feat(web): resume interrupted transfers (two-device check)
+  - [x] 15a. fix(signaling): keep pairings across brief reconnects
+  - [ ] 15b. feat(shared): add file-accept peer message
+  - [ ] 15c. feat(web): resume partially received files
+  - [ ] 15d. feat(web): re-open dropped data channels and retry sends
 - [ ] 16. fix(web): revoke object URLs
 
 ## Next 3 steps
 
-1. feat(web): resume interrupted transfers (two-device check)
-2. fix(web): revoke object URLs
+1. feat(shared): add file-accept peer message
+2. feat(web): resume partially received files
+3. feat(web): re-open dropped data channels and retry sends
 
 ## Half-done files
 
-- verify TRUST_PROXY/XFF on Render after deploy
+- step 15 in progress (15a done); verify TRUST_PROXY/XFF on Render after deploy
 
 ## Stage 1 (done, merged)
 
