@@ -17,12 +17,13 @@ Working log for the staged refactor on `refactor/architecture`.
 - fix(web): remove reference to missing favicon.svg
 - build(repo): add typecheck, lint, build scripts
 - build(shared): consume shared as source; bundle signaling
+- build(repo): add vitest
 
 ## Next 3 steps
 
-1. build(repo): add vitest
-2. docs(repo): fix README setup and add .env.example
-3. ci: add typecheck, lint, build workflow
+1. docs(repo): fix README setup and add .env.example
+2. ci: add typecheck, lint, build workflow
+3. feat(shared): add zod signaling protocol
 
 ## Half-done files
 
