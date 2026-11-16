@@ -13,12 +13,13 @@ Working log for the staged refactor on `refactor/architecture`.
 ## Done
 
 - chore(repo): remove committed build artifacts
+- chore(web): remove Next.js boilerplate
 
 ## Next 3 steps
 
-1. chore(web): remove Next.js boilerplate
-2. fix(web): remove reference to missing favicon.svg
-3. build(repo): add typecheck, lint, build scripts
+1. fix(web): remove reference to missing favicon.svg
+2. build(repo): add typecheck, lint, build scripts
+3. build(shared): consume shared as source; bundle signaling
 
 ## Half-done files
 
