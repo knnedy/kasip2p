@@ -9,6 +9,7 @@ import {
   sendFile,
   type ChunkSink,
 } from "./chunk-utils";
+import type { CreateStore } from "@/lib/transfer/file-store";
 
 type SinkEvent = "bufferedamountlow" | "close";
 
@@ -60,6 +61,7 @@ describe("sendFile + createReceiver", () => {
     const onStart = vi.fn();
     const receive = createReceiver({ onStart, onProgress, onComplete });
     sink.sent.forEach(receive);
+    await flush();
 
     expect(onStart).toHaveBeenCalledWith(
       expect.objectContaining({ transferId: "t1", name: "a.bin", totalChunks: 3 }),
@@ -82,6 +84,7 @@ describe("sendFile + createReceiver", () => {
     const onComplete = vi.fn<(meta: FileMeta, file: File) => void>();
     const receive = createReceiver({ onStart: vi.fn(), onProgress: vi.fn(), onComplete });
     sink.sent.forEach(receive);
+    await flush();
 
     expect(onComplete).toHaveBeenCalledOnce();
     const [, file] = onComplete.mock.calls[0]!;
@@ -97,11 +100,79 @@ describe("sendFile + createReceiver", () => {
     const onComplete = vi.fn<(meta: FileMeta, file: File) => void>();
     const receive = createReceiver({ onStart: vi.fn(), onProgress: vi.fn(), onComplete });
     sink.sent.forEach(receive);
+    await flush();
 
     expect(onComplete.mock.calls.map(([m, f]) => [m.transferId, f.size])).toEqual([
       ["t1", 0],
       ["t2", 10],
     ]);
+  });
+
+  it("writes to the store strictly in order even when writes are slow", async () => {
+    const written: number[] = [];
+    const slowStore: CreateStore = async (meta) => ({
+      async write(chunk) {
+        await new Promise((r) => setTimeout(r, Math.random() * 5));
+        written.push(new Uint8Array(chunk)[0]!);
+      },
+      async finish() {
+        return new File([], meta.name);
+      },
+      async abort() {},
+    });
+    const onComplete = vi.fn();
+    const receive = createReceiver(
+      { onStart: vi.fn(), onProgress: vi.fn(), onComplete },
+      slowStore,
+    );
+    receive(JSON.stringify({ type: "file-meta", transferId: "t", name: "x", size: 5, mimeType: "", totalChunks: 5 }));
+    for (let i = 0; i < 5; i++) receive(new Uint8Array([i]).buffer);
+
+    expect(onComplete).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
+    expect(written).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it("reports a failed write and aborts the store", async () => {
+    const abort = vi.fn(async () => {});
+    const failing: CreateStore = async () => ({
+      write: async () => {
+        throw new Error("disk full");
+      },
+      finish: async () => new File([], "x"),
+      abort,
+    });
+    const onError = vi.fn();
+    const onComplete = vi.fn();
+    const receive = createReceiver(
+      { onStart: vi.fn(), onProgress: vi.fn(), onComplete, onError },
+      failing,
+    );
+    receive(JSON.stringify({ type: "file-meta", transferId: "t", name: "x", size: 1, mimeType: "", totalChunks: 1 }));
+    receive(new ArrayBuffer(1));
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(abort).toHaveBeenCalled();
+  });
+
+  it("aborts an unfinished file when a new file-meta arrives", async () => {
+    const aborts: string[] = [];
+    const store: CreateStore = async (meta) => ({
+      write: async () => {},
+      finish: async () => new File([], meta.name),
+      abort: async () => {
+        aborts.push(meta.transferId);
+      },
+    });
+    const receive = createReceiver(
+      { onStart: vi.fn(), onProgress: vi.fn(), onComplete: vi.fn() },
+      store,
+    );
+    receive(JSON.stringify({ type: "file-meta", transferId: "old", name: "a", size: 10, mimeType: "", totalChunks: 1 }));
+    receive(new ArrayBuffer(4));
+    receive(JSON.stringify({ type: "file-meta", transferId: "new", name: "b", size: 0, mimeType: "", totalChunks: 0 }));
+    await flush();
+    expect(aborts).toEqual(["old"]);
   });
 
   it("ignores binary data that arrives before any file-meta", () => {

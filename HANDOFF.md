@@ -28,15 +28,14 @@ Current: Stage 2 (reliability + security) on `feat/reliability-security`.
 - [x] 11. perf(web): throttle progress updates
 - [x] 12. perf(web): event-driven backpressure and adaptive chunk size (two-device check)
 - [x] 13. fix(web): complete zero-byte transfers
-- [ ] 14. feat(web): stream received files to disk
+- [x] 14. feat(web): stream received files to disk
 - [ ] 15. feat(web): resume interrupted transfers (two-device check)
 - [ ] 16. fix(web): revoke object URLs
 
 ## Next 3 steps
 
-1. feat(web): stream received files to disk
-2. feat(web): resume interrupted transfers (two-device check)
-3. fix(web): revoke object URLs
+1. feat(web): resume interrupted transfers (two-device check)
+2. fix(web): revoke object URLs
 
 ## Half-done files
 

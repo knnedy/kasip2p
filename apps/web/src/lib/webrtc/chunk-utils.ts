@@ -1,4 +1,5 @@
 import { parsePeerMessage, type FileMeta, type PeerMessage } from "@kasip2p/shared";
+import { memoryStore, type CreateStore, type IncomingFileStore } from "@/lib/transfer/file-store";
 
 export const DEFAULT_CHUNK_SIZE = 64 * 1024;
 const MAX_CHUNK_SIZE = 256 * 1024;
@@ -83,43 +84,68 @@ export async function sendFile(
 export interface ReceiverCallbacks {
   onStart(meta: FileMeta): void;
   onProgress(meta: FileMeta, transferredBytes: number): void;
-  onComplete(meta: FileMeta, file: File): void;
+  onComplete(meta: FileMeta, file: File): void | Promise<void>;
+  onError?(meta: FileMeta, error: unknown): void;
+}
+
+interface Incoming {
+  meta: FileMeta;
+  store: Promise<IncomingFileStore>;
+  received: number;
+  writes: Promise<void>; // chained so chunks hit the store strictly in order
 }
 
 // One receiver per channel; handles one file at a time in arrival order.
-export function createReceiver(callbacks: ReceiverCallbacks) {
-  let meta: FileMeta | null = null;
-  let chunks: ArrayBuffer[] = [];
-  let received = 0;
+export function createReceiver(
+  callbacks: ReceiverCallbacks,
+  createStore: CreateStore = memoryStore,
+) {
+  let current: Incoming | null = null;
+
+  function enqueue(incoming: Incoming, op: (store: IncomingFileStore) => Promise<void>) {
+    incoming.writes = incoming.writes.then(async () => op(await incoming.store));
+  }
 
   // Completion is by byte count, so empty files finish on their file-meta alone.
   function completeIfDone() {
-    if (!meta || received < meta.size) return;
-    const file = new File(chunks, meta.name, { type: meta.mimeType });
-    const done = meta;
-    meta = null;
-    chunks = [];
-    callbacks.onComplete(done, file);
+    const incoming = current;
+    if (!incoming || incoming.received < incoming.meta.size) return;
+    current = null;
+    incoming.writes
+      .then(async () => {
+        const file = await (await incoming.store).finish();
+        await callbacks.onComplete(incoming.meta, file);
+      })
+      .catch(async (err) => {
+        callbacks.onError?.(incoming.meta, err);
+        await (await incoming.store).abort().catch(() => {});
+      });
   }
 
   return function handleData(data: string | ArrayBuffer) {
     if (typeof data === "string") {
       const msg = parsePeerMessage(data);
       if (msg?.type === "file-meta") {
-        meta = msg;
-        chunks = [];
-        received = 0;
+        if (current) {
+          const abandoned = current;
+          enqueue(abandoned, (store) => store.abort());
+        }
+        current = {
+          meta: msg,
+          store: createStore(msg),
+          received: 0,
+          writes: Promise.resolve(),
+        };
         callbacks.onStart(msg);
         completeIfDone();
       }
       return;
     }
 
-    if (!meta) return;
-
-    chunks.push(data);
-    received += data.byteLength;
-    callbacks.onProgress(meta, received);
+    if (!current) return;
+    current.received += data.byteLength;
+    enqueue(current, (store) => store.write(data));
+    callbacks.onProgress(current.meta, current.received);
     completeIfDone();
   };
 }

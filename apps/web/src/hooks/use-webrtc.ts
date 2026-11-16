@@ -2,9 +2,14 @@
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { peerManager } from "@/lib/webrtc/peer-manager";
-import { chooseChunkSize, createReceiver, sendFile } from "@/lib/webrtc/chunk-utils";
+import {
+  chooseChunkSize,
+  createReceiver,
+  sendFile,
+} from "@/lib/webrtc/chunk-utils";
 import { activeTransfers, transfersReducer } from "@/lib/transfer/machine";
 import { createProgressThrottle } from "@/lib/transfer/progress-throttle";
+import { createIncomingStore, removeIncoming } from "@/lib/transfer/file-store";
 import { saveTransfer } from "@/lib/store/idb";
 import { generateId } from "@/lib/utils";
 
@@ -18,7 +23,12 @@ export function useWebRTC(
   // a render per chunk starved the main thread that also drains the data channel
   const [progress] = useState(() =>
     createProgressThrottle((transferId, transferredBytes) =>
-      dispatch({ type: "progressed", transferId, transferredBytes, at: Date.now() }),
+      dispatch({
+        type: "progressed",
+        transferId,
+        transferredBytes,
+        at: Date.now(),
+      }),
     ),
   );
 
@@ -34,40 +44,56 @@ export function useWebRTC(
 
     const receivers = new Map<string, ReturnType<typeof createReceiver>>();
     const receiverFor = (remoteId: string) =>
-      createReceiver({
-        onStart: (meta) =>
-          dispatch({
-            type: "started",
-            at: Date.now(),
-            info: {
+      createReceiver(
+        {
+          onStart: (meta) =>
+            dispatch({
+              type: "started",
+              at: Date.now(),
+              info: {
+                transferId: meta.transferId,
+                peerId: remoteId,
+                fileName: meta.name,
+                totalBytes: meta.size,
+                direction: "receiving",
+              },
+            }),
+          onProgress: (meta, transferredBytes) =>
+            progress.report(meta.transferId, transferredBytes),
+          onComplete: async (meta, file) => {
+            progress.finish(meta.transferId);
+            await saveTransfer(
+              {
+                id: meta.transferId,
+                fileName: file.name,
+                fileSize: file.size,
+                mimeType: file.type,
+                direction: "received",
+                peerId: remoteId,
+                peerName: remoteId,
+                completedAt: Date.now(),
+              },
+              file,
+            );
+            await removeIncoming(meta.transferId);
+            dispatch({
+              type: "completed",
               transferId: meta.transferId,
-              peerId: remoteId,
-              fileName: meta.name,
-              totalBytes: meta.size,
-              direction: "receiving",
-            },
-          }),
-        onProgress: (meta, transferredBytes) =>
-          progress.report(meta.transferId, transferredBytes),
-        onComplete: async (meta, file) => {
-          progress.finish(meta.transferId);
-          await saveTransfer(
-            {
-              id: meta.transferId,
-              fileName: file.name,
-              fileSize: file.size,
-              mimeType: file.type,
-              direction: "received",
-              peerId: remoteId,
-              peerName: remoteId,
-              completedAt: Date.now(),
-            },
-            file,
-          );
-          dispatch({ type: "completed", transferId: meta.transferId, at: Date.now() });
-          onCompleteRef.current?.();
+              at: Date.now(),
+            });
+            onCompleteRef.current?.();
+          },
+          onError: (meta, err) => {
+            progress.finish(meta.transferId);
+            dispatch({
+              type: "failed",
+              transferId: meta.transferId,
+              reason: String(err),
+            });
+          },
         },
-      });
+        createIncomingStore,
+      );
 
     peerManager.setMessageHandler((remoteId, data) => {
       let receive = receivers.get(remoteId);
