@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useReducer, useRef } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { peerManager } from "@/lib/webrtc/peer-manager";
 import { createReceiver, sendFile } from "@/lib/webrtc/chunk-utils";
 import { activeTransfers, transfersReducer } from "@/lib/transfer/machine";
+import { createProgressThrottle } from "@/lib/transfer/progress-throttle";
 import { saveTransfer } from "@/lib/store/idb";
 import { generateId } from "@/lib/utils";
 
@@ -14,6 +15,14 @@ export function useWebRTC(
 ) {
   const [state, dispatch] = useReducer(transfersReducer, {});
   const onCompleteRef = useRef(onTransferComplete);
+  // a render per chunk starved the main thread that also drains the data channel
+  const [progress] = useState(() =>
+    createProgressThrottle((transferId, transferredBytes) =>
+      dispatch({ type: "progressed", transferId, transferredBytes, at: Date.now() }),
+    ),
+  );
+
+  useEffect(() => () => progress.dispose(), [progress]);
 
   useEffect(() => {
     onCompleteRef.current = onTransferComplete;
@@ -39,13 +48,9 @@ export function useWebRTC(
             },
           }),
         onProgress: (meta, transferredBytes) =>
-          dispatch({
-            type: "progressed",
-            transferId: meta.transferId,
-            transferredBytes,
-            at: Date.now(),
-          }),
+          progress.report(meta.transferId, transferredBytes),
         onComplete: async (meta, file) => {
+          progress.finish(meta.transferId);
           await saveTransfer(
             {
               id: meta.transferId,
@@ -74,7 +79,7 @@ export function useWebRTC(
     });
 
     return () => peerManager.setMessageHandler(null);
-  }, [localPeerId]);
+  }, [localPeerId, progress]);
 
   function initiate(targetId: string) {
     peerManager.start(localPeerId);
@@ -103,12 +108,14 @@ export function useWebRTC(
 
     try {
       await sendFile(dc, file, transferId, (transferredBytes) =>
-        dispatch({ type: "progressed", transferId, transferredBytes, at: Date.now() }),
+        progress.report(transferId, transferredBytes),
       );
     } catch (err) {
+      progress.finish(transferId);
       dispatch({ type: "failed", transferId, reason: String(err) });
       return;
     }
+    progress.finish(transferId);
 
     await saveTransfer({
       id: transferId,
