@@ -1,14 +1,43 @@
 import type { FileMeta } from "@kasip2p/shared";
 import { describe, expect, it, vi } from "vitest";
-import { CHUNK_SIZE, createReceiver, sendFile, type ChunkSink } from "./chunk-utils";
+import {
+  chooseChunkSize,
+  DEFAULT_CHUNK_SIZE as CHUNK_SIZE,
+  HIGH_WATER_MARK,
+  LOW_WATER_MARK,
+  createReceiver,
+  sendFile,
+  type ChunkSink,
+} from "./chunk-utils";
+
+type SinkEvent = "bufferedamountlow" | "close";
 
 class FakeSink implements ChunkSink {
   sent: (string | ArrayBuffer)[] = [];
   bufferedAmount = 0;
+  bufferedAmountLowThreshold = 0;
+  readyState: RTCDataChannelState = "open";
+  private listeners = new Map<SinkEvent, Set<() => void>>();
   send(data: string | ArrayBuffer) {
     this.sent.push(data);
   }
+  addEventListener(type: SinkEvent, l: () => void) {
+    const set = this.listeners.get(type) ?? new Set();
+    set.add(l);
+    this.listeners.set(type, set);
+  }
+  removeEventListener(type: SinkEvent, l: () => void) {
+    this.listeners.get(type)?.delete(l);
+  }
+  emit(type: SinkEvent) {
+    [...(this.listeners.get(type) ?? [])].forEach((l) => l());
+  }
+  listenerCount() {
+    return [...this.listeners.values()].reduce((n, s) => n + s.size, 0);
+  }
 }
+
+const flush = () => new Promise((r) => setTimeout(r, 0));
 
 function makeFile(size: number, name = "a.bin") {
   const bytes = new Uint8Array(size).map((_, i) => i % 251);
@@ -60,19 +89,47 @@ describe("sendFile + createReceiver", () => {
     expect(onStart).not.toHaveBeenCalled();
   });
 
-  it("waits while the channel buffer is full", async () => {
-    vi.useFakeTimers();
+  it("pauses above the high-water mark until bufferedamountlow fires", async () => {
     const sink = new FakeSink();
-    sink.bufferedAmount = 32 * 1024 * 1024;
+    sink.bufferedAmount = HIGH_WATER_MARK + 1;
     const done = sendFile(sink, makeFile(10), "t1", () => {});
 
-    await vi.advanceTimersByTimeAsync(200);
+    await flush();
+    expect(sink.bufferedAmountLowThreshold).toBe(LOW_WATER_MARK);
     expect(sink.sent).toHaveLength(1); // only meta
 
     sink.bufferedAmount = 0;
-    await vi.advanceTimersByTimeAsync(100);
+    sink.emit("bufferedamountlow");
     await done;
     expect(sink.sent).toHaveLength(2);
-    vi.useRealTimers();
+    expect(sink.listenerCount()).toBe(0);
+  });
+
+  it("fails instead of hanging when the channel closes while paused", async () => {
+    const sink = new FakeSink();
+    sink.bufferedAmount = HIGH_WATER_MARK + 1;
+    const done = sendFile(sink, makeFile(10), "t1", () => {});
+    await flush();
+    sink.readyState = "closed";
+    sink.emit("close");
+    await expect(done).rejects.toThrow("data channel closed");
+    expect(sink.listenerCount()).toBe(0);
+  });
+
+  it("uses the requested chunk size", async () => {
+    const sink = new FakeSink();
+    await sendFile(sink, makeFile(256 * 1024 + 1), "t1", () => {}, 256 * 1024);
+    expect(sink.sent).toHaveLength(3); // meta + 2 chunks
+    expect(JSON.parse(sink.sent[0] as string)).toMatchObject({ totalChunks: 2 });
+  });
+});
+
+describe("chooseChunkSize", () => {
+  it("uses the remote limit capped at 256KB, defaulting to 64KB", () => {
+    expect(chooseChunkSize(undefined)).toBe(64 * 1024);
+    expect(chooseChunkSize(Infinity)).toBe(64 * 1024);
+    expect(chooseChunkSize(262_144)).toBe(256 * 1024);
+    expect(chooseChunkSize(1_073_741_823)).toBe(256 * 1024);
+    expect(chooseChunkSize(8 * 1024)).toBe(8 * 1024);
   });
 });

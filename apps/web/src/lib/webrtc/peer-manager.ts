@@ -46,6 +46,11 @@ class PeerManager {
     return dc?.readyState === "open" ? dc : undefined;
   }
 
+  // Remote's advertised SCTP max message size; undefined before the transport is up.
+  getMaxMessageSize(remoteId: string): number | undefined {
+    return this.connections.get(remoteId)?.sctp?.maxMessageSize;
+  }
+
   close(remoteId: string) {
     this.connections.get(remoteId)?.close();
     this.connections.delete(remoteId);

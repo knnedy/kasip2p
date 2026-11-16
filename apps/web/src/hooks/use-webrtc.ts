@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { peerManager } from "@/lib/webrtc/peer-manager";
-import { createReceiver, sendFile } from "@/lib/webrtc/chunk-utils";
+import { chooseChunkSize, createReceiver, sendFile } from "@/lib/webrtc/chunk-utils";
 import { activeTransfers, transfersReducer } from "@/lib/transfer/machine";
 import { createProgressThrottle } from "@/lib/transfer/progress-throttle";
 import { saveTransfer } from "@/lib/store/idb";
@@ -107,8 +107,12 @@ export function useWebRTC(
     });
 
     try {
-      await sendFile(dc, file, transferId, (transferredBytes) =>
-        progress.report(transferId, transferredBytes),
+      await sendFile(
+        dc,
+        file,
+        transferId,
+        (transferredBytes) => progress.report(transferId, transferredBytes),
+        chooseChunkSize(peerManager.getMaxMessageSize(targetId)),
       );
     } catch (err) {
       progress.finish(transferId);

@@ -26,7 +26,7 @@ Current: Stage 2 (reliability + security) on `feat/reliability-security`.
 - [x] 9. feat(web): configurable ICE servers and ICE restart
 - [x] 10. fix(web): open a single data channel per pair (two-device check)
 - [x] 11. perf(web): throttle progress updates
-- [ ] 12. perf(web): event-driven backpressure and adaptive chunk size (two-device check)
+- [x] 12. perf(web): event-driven backpressure and adaptive chunk size (two-device check)
 - [ ] 13. fix(web): complete zero-byte transfers
 - [ ] 14. feat(web): stream received files to disk
 - [ ] 15. feat(web): resume interrupted transfers (two-device check)
@@ -34,13 +34,13 @@ Current: Stage 2 (reliability + security) on `feat/reliability-security`.
 
 ## Next 3 steps
 
-1. perf(web): event-driven backpressure and adaptive chunk size (two-device check)
-2. fix(web): complete zero-byte transfers
-3. feat(web): stream received files to disk
+1. fix(web): complete zero-byte transfers
+2. feat(web): stream received files to disk
+3. feat(web): resume interrupted transfers (two-device check)
 
 ## Half-done files
 
-- verify TRUST_PROXY/XFF on Render after deploy
+- WAITING on two-device speed check (dev and prod build); verify TRUST_PROXY/XFF on Render after deploy
 
 ## Stage 1 (done, merged)
 
