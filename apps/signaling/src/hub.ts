@@ -56,10 +56,13 @@ export class SignalingHub {
 
     switch (msg.type) {
       case "pair-request":
+        this.pairing.request(fromId, msg.targetId);
         this.forward(conn, msg.targetId, { type: "pair-request", fromId });
         break;
       case "pair-pin":
-        this.pairing.setPin(fromId, msg.targetId, msg.pin);
+        if (!this.pairing.setPin(fromId, msg.targetId, msg.pin)) {
+          this.error(conn, "unauthorized", "no pair request from that peer");
+        }
         break;
       case "pair-confirm":
         if (!this.pairing.confirm(fromId, msg.targetId, msg.pin)) {

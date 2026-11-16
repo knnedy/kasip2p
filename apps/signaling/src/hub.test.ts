@@ -85,11 +85,28 @@ describe("SignalingHub", () => {
   });
 
   it("rejects a wrong PIN and does not pair", () => {
+    send(hub, a, { type: "pair-request", targetId: "bob" });
     send(hub, b, { type: "pair-pin", targetId: "alice", pin: "1234" });
     send(hub, a, { type: "pair-confirm", targetId: "bob", pin: "9999" });
     expect(a.last()).toMatchObject({ type: "error", code: "incorrect-pin" });
     send(hub, a, { type: "sdp", targetId: "bob", sdp: { type: "offer", sdp: "v=0" } });
     expect(a.last()).toMatchObject({ type: "error", code: "unauthorized" });
+  });
+
+  it("does not let the requester set the PIN itself", () => {
+    send(hub, a, { type: "pair-request", targetId: "bob" });
+    send(hub, a, { type: "pair-pin", targetId: "bob", pin: "0000" });
+    expect(a.last()).toMatchObject({ type: "error", code: "unauthorized" });
+    send(hub, a, { type: "pair-confirm", targetId: "bob", pin: "0000" });
+    expect(a.last()).toMatchObject({ type: "error", code: "incorrect-pin" });
+    expect(b.ofType("pair-accept")).toHaveLength(0);
+  });
+
+  it("ignores a PIN for a peer that never requested pairing", () => {
+    send(hub, b, { type: "pair-pin", targetId: "alice", pin: "1234" });
+    expect(b.last()).toMatchObject({ type: "error", code: "unauthorized" });
+    send(hub, a, { type: "pair-confirm", targetId: "bob", pin: "1234" });
+    expect(a.last()).toMatchObject({ type: "error", code: "incorrect-pin" });
   });
 
   it("relays sdp and ice only between paired peers", () => {

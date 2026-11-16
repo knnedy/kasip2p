@@ -22,12 +22,13 @@ Working log for the staged refactor on `refactor/architecture`.
 - ci: add typecheck, lint, test, build workflow (not yet run on GitHub; nothing pushed)
 - feat(shared): add zod signaling protocol (ClientMessage has no fromId; server stamps it)
 - refactor(signaling): validate messages and stamp fromId (hub/pairing/peer-registry split, 11 tests)
+- fix(signaling): bind PIN to the device that received the pair request
 
 ## Next 3 steps
 
-1. fix(signaling): bind PIN to the device that received the pair request
-2. refactor(web): validate signaling messages in ws-client; drop legacy SignalMessage
-3. refactor(web): model pairing as a state machine
+1. refactor(web): validate signaling messages in ws-client; drop legacy SignalMessage
+2. refactor(web): model pairing as a state machine
+3. refactor(web): model transfer as a state machine
 
 ## Notes for upcoming steps
 
