@@ -7,18 +7,10 @@ import { siAndroid, siApple, siUbuntu, siLinux } from "simple-icons";
 import type { OS } from "@kasip2p/shared";
 import { Zap, Shield, Wifi } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { generateId } from "@/lib/utils";
+import { getOrCreatePeerId } from "@/lib/peer-id";
 
 const ACCENT = "#00d9ff";
 const ACCENT_DIM = "rgba(0,217,255,";
-
-function getOrCreatePeerId(): string {
-  const stored = localStorage.getItem("kasip2p-peer-id");
-  if (stored) return stored;
-  const id = generateId();
-  localStorage.setItem("kasip2p-peer-id", id);
-  return id;
-}
 
 const windowsPath =
   "M0 0h11.377v11.372H0zm12.623 0H24v11.372H12.623zM0 12.623h11.377V24H0zm12.623 0H24V24H12.623z";
@@ -184,10 +176,7 @@ function drawRadar(
 
 export default function Home() {
   const router = useRouter();
-  const [peerId] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    return getOrCreatePeerId();
-  });
+  const [peerId] = useState<string>(getOrCreatePeerId);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { getOrCreatePeerId } from "@/lib/peer-id";
 import { useWebRTC } from "@/hooks/use-webrtc";
 import { usePeers } from "@/hooks/use-peers";
 import { getTransfers } from "@/lib/store/idb";
@@ -59,10 +60,7 @@ export default function TransferPage() {
   const router = useRouter();
   const targetId = params["peerId"] as string;
 
-  const [localPeerId] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    return localStorage.getItem("kasip2p-peer-id") ?? "";
-  });
+  const [localPeerId] = useState<string>(getOrCreatePeerId);
 
   const queryClient = useQueryClient();
   const { peers } = usePeers(localPeerId);

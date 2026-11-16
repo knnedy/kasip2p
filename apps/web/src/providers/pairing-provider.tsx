@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getOrCreatePeerId } from "@/lib/peer-id";
 import { signalingClient } from "@/lib/signaling/ws-client";
 import { useIncomingPair } from "@/hooks/use-incoming-pair";
 import { PairRequestModal } from "@/components/pair-request-modal";
@@ -9,10 +10,7 @@ import type { PeerMeta } from "@kasip2p/shared";
 export function PairingProvider({ children }: { children: React.ReactNode }) {
   const [peers, setPeers] = useState<{ meta: PeerMeta }[]>([]);
 
-  const [localPeerId] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    return localStorage.getItem("kasip2p-peer-id") ?? "";
-  });
+  const [localPeerId] = useState<string>(getOrCreatePeerId);
 
   useEffect(() => {
     if (!localPeerId) return;

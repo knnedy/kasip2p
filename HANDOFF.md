@@ -27,12 +27,13 @@ Working log for the staged refactor on `refactor/architecture`.
 - refactor(web): validate signaling messages in ws-client (legacy SignalMessage removed)
 - refactor(web): model pairing as a state machine (lib/pairing/machine.ts, 10 tests)
 - refactor(web): add transfer state machine (lib/transfer/machine.ts, 7 tests; wired in next step)
+- fix(web): create the peer id before the provider connects
 
 ## Next 3 steps
 
-1. fix(web): create the peer id before the provider connects (first visit never registers)
-2. refactor(web): split peer-manager, chunk-utils, use-webrtc (needs a two-device smoke test)
-3. refactor(web): extract shared OsIcon component
+1. refactor(web): split peer-manager, chunk-utils, use-webrtc (needs a two-device smoke test)
+2. refactor(web): extract shared OsIcon component
+3. Stage 1 wrap-up: summary, then wait for Stage 2 approval
 
 ## Half-done files
 

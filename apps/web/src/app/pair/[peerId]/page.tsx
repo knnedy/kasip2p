@@ -3,6 +3,7 @@
 import { useEffect, useReducer, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
+import { getOrCreatePeerId } from "@/lib/peer-id";
 import { signalingClient } from "@/lib/signaling/ws-client";
 import {
   initialPairingState,
@@ -60,10 +61,7 @@ export default function PairPage() {
   const router = useRouter();
   const targetId = params["peerId"] as string;
 
-  const [localPeerId] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    return localStorage.getItem("kasip2p-peer-id") ?? "";
-  });
+  const [localPeerId] = useState<string>(getOrCreatePeerId);
 
   const { peers } = usePeers(localPeerId);
   const targetPeer = peers.find((p) => p.meta.peerId === targetId);
