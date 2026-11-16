@@ -91,6 +91,26 @@ describe("transfersReducer", () => {
     ).toBe(done);
   });
 
+  it("resumes from an offset without counting it toward speed", () => {
+    const state = run(
+      { type: "started", info, at: 1_000, offset: 1024 * 1024 },
+      { type: "progressed", transferId: "t1", transferredBytes: 2 * 1024 * 1024, at: 2_000 },
+    );
+    expect(activeTransfers(state)[0]).toMatchObject({
+      transferredBytes: 2 * 1024 * 1024,
+      speedMBps: 1,
+    });
+  });
+
+  it("restarts a failed transfer when it is started again", () => {
+    const state = run(
+      started,
+      { type: "failed", transferId: "t1", reason: "closed" },
+      { type: "started", info, at: 5_000, offset: 10 },
+    );
+    expect(state["t1"]).toMatchObject({ status: "active", transferredBytes: 10 });
+  });
+
   it("filters active transfers by peer", () => {
     const state = run(started, {
       type: "started",

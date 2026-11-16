@@ -5,6 +5,7 @@ import {
   DEFAULT_CHUNK_SIZE as CHUNK_SIZE,
   HIGH_WATER_MARK,
   LOW_WATER_MARK,
+  createAcceptRegistry,
   createReceiver,
   sendFile,
   type ChunkSink,
@@ -40,6 +41,9 @@ class FakeSink implements ChunkSink {
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
+const meta = (transferId: string, size: number) =>
+  JSON.stringify({ type: "file-meta", transferId, name: transferId, size, mimeType: "", totalChunks: 1 });
+
 function makeFile(size: number, name = "a.bin") {
   const bytes = new Uint8Array(size).map((_, i) => i % 251);
   return new File([bytes], name, { type: "application/octet-stream" });
@@ -59,12 +63,13 @@ describe("sendFile + createReceiver", () => {
     const onComplete = vi.fn<(meta: FileMeta, file: File) => void>();
     const onProgress = vi.fn();
     const onStart = vi.fn();
-    const receive = createReceiver({ onStart, onProgress, onComplete });
+    const { handle: receive } = createReceiver({ onStart, onProgress, onComplete });
     sink.sent.forEach(receive);
     await flush();
 
     expect(onStart).toHaveBeenCalledWith(
       expect.objectContaining({ transferId: "t1", name: "a.bin", totalChunks: 3 }),
+      0,
     );
     expect(onProgress).toHaveBeenLastCalledWith(expect.anything(), file.size);
     expect(onComplete).toHaveBeenCalledOnce();
@@ -82,7 +87,7 @@ describe("sendFile + createReceiver", () => {
     expect(sink.sent).toHaveLength(1); // meta only
 
     const onComplete = vi.fn<(meta: FileMeta, file: File) => void>();
-    const receive = createReceiver({ onStart: vi.fn(), onProgress: vi.fn(), onComplete });
+    const { handle: receive } = createReceiver({ onStart: vi.fn(), onProgress: vi.fn(), onComplete });
     sink.sent.forEach(receive);
     await flush();
 
@@ -92,16 +97,24 @@ describe("sendFile + createReceiver", () => {
     expect(file.size).toBe(0);
   });
 
-  it("handles back-to-back files on one channel", async () => {
-    const sink = new FakeSink();
-    await sendFile(sink, makeFile(0, "a"), "t1", () => {});
-    await sendFile(sink, makeFile(10, "b"), "t2", () => {});
-
+  it("handles back-to-back files over a loopback with the accept handshake", async () => {
     const onComplete = vi.fn<(meta: FileMeta, file: File) => void>();
-    const receive = createReceiver({ onStart: vi.fn(), onProgress: vi.fn(), onComplete });
-    sink.sent.forEach(receive);
-    await flush();
+    const accepts = createAcceptRegistry();
+    const { handle: receive } = createReceiver(
+      { onStart: vi.fn(), onProgress: vi.fn(), onComplete },
+      undefined,
+      (reply) => {
+        const msg = JSON.parse(reply);
+        if (msg.type === "file-accept") accepts.resolve(msg);
+      },
+    );
+    const sink = new FakeSink();
+    sink.send = (data) => receive(data);
 
+    await sendFile(sink, makeFile(0, "a"), "t1", () => {}, undefined, accepts.wait);
+    await sendFile(sink, makeFile(10, "b"), "t2", () => {}, undefined, accepts.wait);
+
+    await vi.waitFor(() => expect(onComplete).toHaveBeenCalledTimes(2));
     expect(onComplete.mock.calls.map(([m, f]) => [m.transferId, f.size])).toEqual([
       ["t1", 0],
       ["t2", 10],
@@ -111,6 +124,8 @@ describe("sendFile + createReceiver", () => {
   it("writes to the store strictly in order even when writes are slow", async () => {
     const written: number[] = [];
     const slowStore: CreateStore = async (meta) => ({
+      offset: 0,
+      suspend: async () => {},
       async write(chunk) {
         await new Promise((r) => setTimeout(r, Math.random() * 5));
         written.push(new Uint8Array(chunk)[0]!);
@@ -121,7 +136,7 @@ describe("sendFile + createReceiver", () => {
       async abort() {},
     });
     const onComplete = vi.fn();
-    const receive = createReceiver(
+    const { handle: receive } = createReceiver(
       { onStart: vi.fn(), onProgress: vi.fn(), onComplete },
       slowStore,
     );
@@ -136,6 +151,8 @@ describe("sendFile + createReceiver", () => {
   it("reports a failed write and aborts the store", async () => {
     const abort = vi.fn(async () => {});
     const failing: CreateStore = async () => ({
+      offset: 0,
+      suspend: async () => {},
       write: async () => {
         throw new Error("disk full");
       },
@@ -144,7 +161,7 @@ describe("sendFile + createReceiver", () => {
     });
     const onError = vi.fn();
     const onComplete = vi.fn();
-    const receive = createReceiver(
+    const { handle: receive } = createReceiver(
       { onStart: vi.fn(), onProgress: vi.fn(), onComplete, onError },
       failing,
     );
@@ -155,36 +172,87 @@ describe("sendFile + createReceiver", () => {
     expect(abort).toHaveBeenCalled();
   });
 
-  it("aborts an unfinished file when a new file-meta arrives", async () => {
-    const aborts: string[] = [];
+  it("suspends (keeps) an unfinished file when a new file-meta arrives", async () => {
+    const events: string[] = [];
     const store: CreateStore = async (meta) => ({
+      offset: 0,
       write: async () => {},
       finish: async () => new File([], meta.name),
+      suspend: async () => {
+        events.push(`suspend:${meta.transferId}`);
+      },
       abort: async () => {
-        aborts.push(meta.transferId);
+        events.push(`abort:${meta.transferId}`);
       },
     });
-    const receive = createReceiver(
+    const { handle: receive } = createReceiver(
       { onStart: vi.fn(), onProgress: vi.fn(), onComplete: vi.fn() },
       store,
     );
-    receive(JSON.stringify({ type: "file-meta", transferId: "old", name: "a", size: 10, mimeType: "", totalChunks: 1 }));
+    receive(meta("old", 10));
     receive(new ArrayBuffer(4));
-    receive(JSON.stringify({ type: "file-meta", transferId: "new", name: "b", size: 0, mimeType: "", totalChunks: 0 }));
+    receive(meta("new", 0));
     await flush();
-    expect(aborts).toEqual(["old"]);
+    expect(events).toEqual(["suspend:old"]);
+  });
+
+  it("replies file-accept with the store's offset and resumes counting from it", async () => {
+    const replies: string[] = [];
+    const onStart = vi.fn();
+    const onProgress = vi.fn();
+    const onComplete = vi.fn();
+    const resumed: CreateStore = async (m) => ({
+      offset: 6,
+      write: async () => {},
+      finish: async () => new File([], m.name),
+      suspend: async () => {},
+      abort: async () => {},
+    });
+    const { handle: receive } = createReceiver(
+      { onStart, onProgress, onComplete },
+      resumed,
+      (msg) => replies.push(msg),
+    );
+    receive(meta("t", 10));
+    await flush();
+    expect(JSON.parse(replies[0]!)).toEqual({ type: "file-accept", transferId: "t", offset: 6 });
+    expect(onStart).toHaveBeenCalledWith(expect.objectContaining({ transferId: "t" }), 6);
+
+    receive(new ArrayBuffer(4));
+    expect(onProgress).toHaveBeenLastCalledWith(expect.anything(), 10);
+    await vi.waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
+  });
+
+  it("suspend() keeps the partial file when the channel drops", async () => {
+    const suspend = vi.fn(async () => {});
+    const store: CreateStore = async (m) => ({
+      offset: 0,
+      write: async () => {},
+      finish: async () => new File([], m.name),
+      suspend,
+      abort: async () => {},
+    });
+    const receiver = createReceiver(
+      { onStart: vi.fn(), onProgress: vi.fn(), onComplete: vi.fn() },
+      store,
+    );
+    receiver.handle(meta("t", 10));
+    receiver.handle(new ArrayBuffer(3));
+    receiver.suspend();
+    await flush();
+    expect(suspend).toHaveBeenCalledOnce();
   });
 
   it("ignores binary data that arrives before any file-meta", () => {
     const onProgress = vi.fn();
-    const receive = createReceiver({ onStart: vi.fn(), onProgress, onComplete: vi.fn() });
+    const { handle: receive } = createReceiver({ onStart: vi.fn(), onProgress, onComplete: vi.fn() });
     receive(new ArrayBuffer(8));
     expect(onProgress).not.toHaveBeenCalled();
   });
 
   it("ignores malformed control messages", () => {
     const onStart = vi.fn();
-    const receive = createReceiver({ onStart, onProgress: vi.fn(), onComplete: vi.fn() });
+    const { handle: receive } = createReceiver({ onStart, onProgress: vi.fn(), onComplete: vi.fn() });
     receive("not json");
     receive(JSON.stringify({ type: "file-meta", name: "x" }));
     expect(onStart).not.toHaveBeenCalled();
@@ -232,5 +300,54 @@ describe("chooseChunkSize", () => {
     expect(chooseChunkSize(262_144)).toBe(256 * 1024);
     expect(chooseChunkSize(1_073_741_823)).toBe(256 * 1024);
     expect(chooseChunkSize(8 * 1024)).toBe(8 * 1024);
+  });
+});
+
+describe("resumable send", () => {
+  it("starts streaming from the accepted offset", async () => {
+    const sink = new FakeSink();
+    const file = makeFile(10);
+    const progress: number[] = [];
+    await sendFile(sink, file, "t1", (n) => progress.push(n), 4, async () => 6);
+    const chunks = sink.sent.slice(1) as ArrayBuffer[];
+    expect(chunks.map((c) => c.byteLength)).toEqual([4]);
+    expect(new Uint8Array(chunks[0]!)).toEqual(new Uint8Array(await file.slice(6).arrayBuffer()));
+    expect(progress).toEqual([6, 10]);
+  });
+
+  it("rejects an offset past the end of the file", async () => {
+    const sink = new FakeSink();
+    await expect(
+      sendFile(sink, makeFile(10), "t1", () => {}, 4, async () => 11),
+    ).rejects.toThrow("beyond file size");
+  });
+});
+
+describe("createAcceptRegistry", () => {
+  it("resolves the matching waiter with its offset", async () => {
+    const accepts = createAcceptRegistry();
+    const waiting = accepts.wait("t1");
+    accepts.resolve({ type: "file-accept", transferId: "other", offset: 1 });
+    accepts.resolve({ type: "file-accept", transferId: "t1", offset: 42 });
+    await expect(waiting).resolves.toBe(42);
+  });
+
+  it("times out when the receiver never answers", async () => {
+    vi.useFakeTimers();
+    const accepts = createAcceptRegistry(1_000);
+    const waiting = accepts.wait("t1");
+    const assertion = expect(waiting).rejects.toThrow("did not accept");
+    await vi.advanceTimersByTimeAsync(1_000);
+    await assertion;
+    vi.useRealTimers();
+  });
+
+  it("rejects all waiters when the channel closes", async () => {
+    const accepts = createAcceptRegistry();
+    const a = accepts.wait("a");
+    const b = accepts.wait("b");
+    accepts.rejectAll("data channel closed");
+    await expect(a).rejects.toThrow("data channel closed");
+    await expect(b).rejects.toThrow("data channel closed");
   });
 });

@@ -13,6 +13,7 @@ export type Transfer =
       status: "active";
       info: TransferInfo;
       transferredBytes: number;
+      baseBytes: number; // already held when this attempt started (resume)
       startedAt: number;
       updatedAt: number;
     }
@@ -28,7 +29,7 @@ export type Transfer =
 export type TransfersState = Readonly<Record<string, Transfer>>;
 
 export type TransferEvent =
-  | { type: "started"; info: TransferInfo; at: number }
+  | { type: "started"; info: TransferInfo; at: number; offset?: number }
   | { type: "progressed"; transferId: string; transferredBytes: number; at: number }
   | { type: "completed"; transferId: string; at: number }
   | { type: "failed"; transferId: string; reason: string };
@@ -44,7 +45,8 @@ export function transfersReducer(
     const transfer: Transfer = {
       status: "active",
       info: event.info,
-      transferredBytes: 0,
+      transferredBytes: event.offset ?? 0,
+      baseBytes: event.offset ?? 0,
       startedAt: event.at,
       updatedAt: event.at,
     };
@@ -92,7 +94,8 @@ export function toProgress(
     fileName: t.info.fileName,
     totalBytes: t.info.totalBytes,
     transferredBytes: t.transferredBytes,
-    speedMBps: seconds > 0 ? t.transferredBytes / seconds / 1024 / 1024 : 0,
+    speedMBps:
+      seconds > 0 ? (t.transferredBytes - t.baseBytes) / seconds / 1024 / 1024 : 0,
     direction: t.info.direction,
   };
 }

@@ -1,4 +1,4 @@
-import { set, del, entries, clear } from "idb-keyval";
+import { set, get, del, entries, clear, createStore, type UseStore } from "idb-keyval";
 import type { TransferRecord } from "@kasip2p/shared";
 
 export async function saveTransfer(record: TransferRecord, blob?: Blob) {
@@ -23,4 +23,26 @@ export async function deleteTransfer(id: string) {
 
 export async function clearTransfers() {
   await clear();
+}
+
+// Manifests for files still being received, so a dropped transfer can resume.
+export interface PartialRecord {
+  transferId: string;
+  name: string;
+  size: number;
+}
+
+let partials: UseStore | null = null;
+const partialStore = () => (partials ??= createStore("kasip2p-partials", "partials"));
+
+export async function savePartial(record: PartialRecord) {
+  await set(record.transferId, record, partialStore());
+}
+
+export async function getPartial(transferId: string) {
+  return get<PartialRecord>(transferId, partialStore());
+}
+
+export async function deletePartial(transferId: string) {
+  await del(transferId, partialStore());
 }

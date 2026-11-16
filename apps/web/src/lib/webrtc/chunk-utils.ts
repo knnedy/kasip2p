@@ -1,4 +1,9 @@
-import { parsePeerMessage, type FileMeta, type PeerMessage } from "@kasip2p/shared";
+import {
+  parsePeerMessage,
+  type FileAccept,
+  type FileMeta,
+  type PeerMessage,
+} from "@kasip2p/shared";
 import { memoryStore, type CreateStore, type IncomingFileStore } from "@/lib/transfer/file-store";
 
 export const DEFAULT_CHUNK_SIZE = 64 * 1024;
@@ -55,8 +60,10 @@ export async function sendFile(
   transferId: string,
   onProgress: (transferredBytes: number) => void,
   chunkSize = DEFAULT_CHUNK_SIZE,
+  waitForAccept: (transferId: string) => Promise<number> = async () => 0,
 ) {
   sink.bufferedAmountLowThreshold = LOW_WATER_MARK;
+  const accepted = waitForAccept(transferId); // registered before file-meta goes out
   const meta: PeerMessage = {
     type: "file-meta",
     transferId,
@@ -67,7 +74,9 @@ export async function sendFile(
   };
   sink.send(JSON.stringify(meta));
 
-  let offset = 0;
+  let offset = await accepted;
+  if (offset > file.size) throw new Error(`receiver offset ${offset} beyond file size`);
+  if (offset > 0) onProgress(offset);
   while (offset < file.size) {
     if (sink.readyState !== "open") throw new Error("data channel closed");
     if (sink.bufferedAmount > HIGH_WATER_MARK) {
@@ -81,8 +90,44 @@ export async function sendFile(
   }
 }
 
+export const ACCEPT_TIMEOUT_MS = 10_000;
+
+// Pairs each outgoing file-meta with the receiver's file-accept reply.
+export function createAcceptRegistry(timeoutMs = ACCEPT_TIMEOUT_MS) {
+  const waiters = new Map<
+    string,
+    { resolve(offset: number): void; reject(err: Error): void; timer: ReturnType<typeof setTimeout> }
+  >();
+
+  return {
+    wait(transferId: string): Promise<number> {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          waiters.delete(transferId);
+          reject(new Error("receiver did not accept the file"));
+        }, timeoutMs);
+        waiters.set(transferId, { resolve, reject, timer });
+      });
+    },
+    resolve(msg: FileAccept) {
+      const waiter = waiters.get(msg.transferId);
+      if (!waiter) return;
+      clearTimeout(waiter.timer);
+      waiters.delete(msg.transferId);
+      waiter.resolve(msg.offset);
+    },
+    rejectAll(reason: string) {
+      for (const [id, waiter] of waiters) {
+        clearTimeout(waiter.timer);
+        waiters.delete(id);
+        waiter.reject(new Error(reason));
+      }
+    },
+  };
+}
+
 export interface ReceiverCallbacks {
-  onStart(meta: FileMeta): void;
+  onStart(meta: FileMeta, offset: number): void;
   onProgress(meta: FileMeta, transferredBytes: number): void;
   onComplete(meta: FileMeta, file: File): void | Promise<void>;
   onError?(meta: FileMeta, error: unknown): void;
@@ -99,6 +144,7 @@ interface Incoming {
 export function createReceiver(
   callbacks: ReceiverCallbacks,
   createStore: CreateStore = memoryStore,
+  reply: (message: string) => void = () => {},
 ) {
   let current: Incoming | null = null;
 
@@ -107,9 +153,8 @@ export function createReceiver(
   }
 
   // Completion is by byte count, so empty files finish on their file-meta alone.
-  function completeIfDone() {
-    const incoming = current;
-    if (!incoming || incoming.received < incoming.meta.size) return;
+  function completeIfDone(incoming: Incoming) {
+    if (current !== incoming || incoming.received < incoming.meta.size) return;
     current = null;
     incoming.writes
       .then(async () => {
@@ -122,30 +167,50 @@ export function createReceiver(
       });
   }
 
-  return function handleData(data: string | ArrayBuffer) {
+  function start(meta: FileMeta) {
+    if (current) suspend();
+    const incoming: Incoming = {
+      meta,
+      store: createStore(meta),
+      received: 0,
+      writes: Promise.resolve(),
+    };
+    current = incoming;
+    // tell the sender where to start; a resumed file skips what we already hold
+    incoming.writes = incoming.store.then((store) => {
+      incoming.received += store.offset;
+      reply(JSON.stringify({ type: "file-accept", transferId: meta.transferId, offset: store.offset }));
+      callbacks.onStart(meta, store.offset);
+      completeIfDone(incoming);
+    });
+    incoming.writes.catch((err) => {
+      if (current === incoming) current = null;
+      callbacks.onError?.(meta, err);
+    });
+  }
+
+  // Channel went away: keep the partial file so the same transfer can resume.
+  function suspend() {
+    const incoming = current;
+    if (!incoming) return;
+    current = null;
+    enqueue(incoming, (store) => store.suspend());
+  }
+
+  function handle(data: string | ArrayBuffer) {
     if (typeof data === "string") {
       const msg = parsePeerMessage(data);
-      if (msg?.type === "file-meta") {
-        if (current) {
-          const abandoned = current;
-          enqueue(abandoned, (store) => store.abort());
-        }
-        current = {
-          meta: msg,
-          store: createStore(msg),
-          received: 0,
-          writes: Promise.resolve(),
-        };
-        callbacks.onStart(msg);
-        completeIfDone();
-      }
+      if (msg?.type === "file-meta") start(msg);
       return;
     }
 
-    if (!current) return;
-    current.received += data.byteLength;
-    enqueue(current, (store) => store.write(data));
-    callbacks.onProgress(current.meta, current.received);
-    completeIfDone();
-  };
+    const incoming = current;
+    if (!incoming) return;
+    incoming.received += data.byteLength;
+    enqueue(incoming, (store) => store.write(data));
+    callbacks.onProgress(incoming.meta, incoming.received);
+    completeIfDone(incoming);
+  }
+
+  return { handle, suspend };
 }

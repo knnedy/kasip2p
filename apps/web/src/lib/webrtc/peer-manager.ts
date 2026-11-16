@@ -11,6 +11,8 @@ export function isInitiator(localId: string, remoteId: string): boolean {
 
 export type ChannelData = string | ArrayBuffer;
 type MessageHandler = (remoteId: string, data: ChannelData) => void;
+export type ChannelEvent = "open" | "close";
+type ChannelListener = (remoteId: string, event: ChannelEvent) => void;
 
 // Owns RTCPeerConnections and data channels; no React. Started once per local id.
 class PeerManager {
@@ -22,6 +24,7 @@ class PeerManager {
   private iceRestarts = new Map<string, number>();
   private handler: MessageHandler | null = null;
   private queued: [string, ChannelData][] = [];
+  private channelListeners = new Set<ChannelListener>();
 
   start(localId: string) {
     if (!localId || this.localId === localId) return;
@@ -44,6 +47,18 @@ class PeerManager {
   getOpenChannel(remoteId: string): RTCDataChannel | undefined {
     const dc = this.channels.get(remoteId);
     return dc?.readyState === "open" ? dc : undefined;
+  }
+
+  // Small control messages (e.g. file-accept) on the open channel, if any.
+  sendControl(remoteId: string, message: string) {
+    this.getOpenChannel(remoteId)?.send(message);
+  }
+
+  onChannelEvent(listener: ChannelListener) {
+    this.channelListeners.add(listener);
+    return () => {
+      this.channelListeners.delete(listener);
+    };
   }
 
   // Remote's advertised SCTP max message size; undefined before the transport is up.
@@ -76,7 +91,15 @@ class PeerManager {
   private attachChannel(remoteId: string, dc: RTCDataChannel) {
     dc.binaryType = "arraybuffer";
     dc.onmessage = ({ data }) => this.deliver(remoteId, data as ChannelData);
+    const emit = (event: ChannelEvent) => {
+      // ignore events from a channel that has since been replaced
+      if (this.channels.get(remoteId) !== dc) return;
+      this.channelListeners.forEach((l) => l(remoteId, event));
+    };
+    dc.onopen = () => emit("open");
+    dc.onclose = () => emit("close");
     this.channels.set(remoteId, dc);
+    if (dc.readyState === "open") emit("open");
   }
 
   private ensureConnection(remoteId: string): RTCPeerConnection {

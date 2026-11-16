@@ -1,10 +1,13 @@
 import type { FileMeta } from "@kasip2p/shared";
+import { deletePartial, getPartial, savePartial } from "@/lib/store/idb";
 
 // Where an incoming file's bytes go while it is being received.
 export interface IncomingFileStore {
+  readonly offset: number; // bytes already held from an earlier attempt
   write(chunk: ArrayBuffer): Promise<void>;
   finish(): Promise<File>;
-  abort(): Promise<void>;
+  suspend(): Promise<void>; // keep what we have for a later resume
+  abort(): Promise<void>; // discard everything
 }
 
 export type CreateStore = (meta: FileMeta) => Promise<IncomingFileStore>;
@@ -18,6 +21,7 @@ export async function memoryStore(meta: FileMeta): Promise<IncomingFileStore> {
   }
   let chunks: ArrayBuffer[] = [];
   return {
+    offset: 0,
     async write(chunk) {
       chunks.push(chunk);
     },
@@ -25,6 +29,9 @@ export async function memoryStore(meta: FileMeta): Promise<IncomingFileStore> {
       const file = new File(chunks, meta.name, { type: meta.mimeType });
       chunks = [];
       return file;
+    },
+    async suspend() {
+      chunks = [];
     },
     async abort() {
       chunks = [];
@@ -37,18 +44,42 @@ async function incomingDir(): Promise<FileSystemDirectoryHandle> {
   return root.getDirectoryHandle(INCOMING_DIR, { create: true });
 }
 
+// Bytes already on disk from an earlier attempt at the same file, else 0.
+async function resumableOffset(
+  meta: FileMeta,
+  handle: FileSystemFileHandle,
+): Promise<number> {
+  const partial = await getPartial(meta.transferId);
+  if (!partial || partial.size !== meta.size || partial.name !== meta.name) return 0;
+  const onDisk = (await handle.getFile()).size;
+  return onDisk <= meta.size ? onDisk : 0;
+}
+
 // Streams to the origin-private file system so large files never sit in memory.
 export async function opfsStore(meta: FileMeta): Promise<IncomingFileStore> {
   const dir = await incomingDir();
   const handle = await dir.getFileHandle(meta.transferId, { create: true });
-  const writable = await handle.createWritable();
+  const offset = await resumableOffset(meta, handle);
+  const writable = await handle.createWritable({ keepExistingData: offset > 0 });
+  if (offset > 0) {
+    await writable.truncate(offset);
+    await writable.seek(offset);
+  }
+  await savePartial({ transferId: meta.transferId, name: meta.name, size: meta.size });
+
   return {
+    offset,
     write: (chunk) => writable.write(chunk),
     async finish() {
       await writable.close();
+      await deletePartial(meta.transferId);
       const onDisk = await handle.getFile();
       // wraps the disk-backed blob with the real name; no copy into memory
       return new File([onDisk], meta.name, { type: meta.mimeType });
+    },
+    // writes land in a swap file until close(), so close to keep them
+    async suspend() {
+      await writable.close().catch(() => {});
     },
     async abort() {
       await writable.abort().catch(() => {});
@@ -77,8 +108,9 @@ export const createIncomingStore: CreateStore = async (meta) => {
   return memoryStore(meta);
 };
 
-// Deletes the temp file once the transfer is saved elsewhere (or abandoned).
+// Deletes the temp file and manifest once saved elsewhere (or abandoned).
 export async function removeIncoming(transferId: string) {
+  await deletePartial(transferId).catch(() => {});
   if (!opfsSupported()) return;
   try {
     const dir = await incomingDir();

@@ -4,9 +4,11 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { peerManager } from "@/lib/webrtc/peer-manager";
 import {
   chooseChunkSize,
+  createAcceptRegistry,
   createReceiver,
   sendFile,
 } from "@/lib/webrtc/chunk-utils";
+import { parsePeerMessage } from "@kasip2p/shared";
 import { activeTransfers, transfersReducer } from "@/lib/transfer/machine";
 import { createProgressThrottle } from "@/lib/transfer/progress-throttle";
 import { createIncomingStore, removeIncoming } from "@/lib/transfer/file-store";
@@ -32,6 +34,8 @@ export function useWebRTC(
     ),
   );
 
+  const [accepts] = useState(() => createAcceptRegistry());
+
   useEffect(() => () => progress.dispose(), [progress]);
 
   useEffect(() => {
@@ -46,10 +50,11 @@ export function useWebRTC(
     const receiverFor = (remoteId: string) =>
       createReceiver(
         {
-          onStart: (meta) =>
+          onStart: (meta, offset) =>
             dispatch({
               type: "started",
               at: Date.now(),
+              offset,
               info: {
                 transferId: meta.transferId,
                 peerId: remoteId,
@@ -93,19 +98,36 @@ export function useWebRTC(
           },
         },
         createIncomingStore,
+        (reply) => peerManager.sendControl(remoteId, reply),
       );
 
     peerManager.setMessageHandler((remoteId, data) => {
-      let receive = receivers.get(remoteId);
-      if (!receive) {
-        receive = receiverFor(remoteId);
-        receivers.set(remoteId, receive);
+      if (typeof data === "string") {
+        const msg = parsePeerMessage(data);
+        if (msg?.type === "file-accept") {
+          accepts.resolve(msg);
+          return;
+        }
       }
-      receive(data);
+      let receiver = receivers.get(remoteId);
+      if (!receiver) {
+        receiver = receiverFor(remoteId);
+        receivers.set(remoteId, receiver);
+      }
+      receiver.handle(data);
     });
 
-    return () => peerManager.setMessageHandler(null);
-  }, [localPeerId, progress]);
+    const stopChannelEvents = peerManager.onChannelEvent((remoteId, event) => {
+      if (event !== "close") return;
+      receivers.get(remoteId)?.suspend();
+      accepts.rejectAll("data channel closed");
+    });
+
+    return () => {
+      stopChannelEvents();
+      peerManager.setMessageHandler(null);
+    };
+  }, [localPeerId, progress, accepts]);
 
   function initiate(targetId: string) {
     peerManager.start(localPeerId);
@@ -139,6 +161,7 @@ export function useWebRTC(
         transferId,
         (transferredBytes) => progress.report(transferId, transferredBytes),
         chooseChunkSize(peerManager.getMaxMessageSize(targetId)),
+        accepts.wait,
       );
     } catch (err) {
       progress.finish(transferId);
