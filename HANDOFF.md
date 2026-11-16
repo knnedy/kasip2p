@@ -6,6 +6,7 @@ Stage 2 branch: `feat/reliability-security`.
 ## Done (Stage 2 branch, pre-plan housekeeping)
 
 - fix(web): read dev origins from env and default signal URL to page host
+- chore(claude): add project settings
 
 ## Decisions (Stage 1)
 
@@ -38,8 +39,8 @@ Stage 2 branch: `feat/reliability-security`.
 
 ## Next 3 steps
 
-1. chore(claude): add project settings
-2. Plan Stage 2 (reliability + security) and wait for approval
+1. Plan Stage 2 (reliability + security) and wait for approval
+2. Data channel throughput (user saw 0.4 MB/s phone<->laptop)
 3. ws-client: reconnect/heartbeat/re-announce, cold-start UX
 
 ## Half-done files
