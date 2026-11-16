@@ -10,3 +10,5 @@ services:
         value: 3001
       - key: ALLOWED_ORIGINS
         sync: false
+      - key: TRUST_PROXY
+        value: "true"

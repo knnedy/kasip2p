@@ -2,6 +2,7 @@ import {
   parseClientMessage,
   type ClientMessage,
   type ErrorCode,
+  type PeerMeta,
   type ServerMessage,
 } from "@kasip2p/shared";
 import { PairingRegistry, type PairingOptions } from "./pairing.ts";
@@ -11,6 +12,7 @@ import { PeerRegistry } from "./peer-registry.ts";
 export interface Connection {
   send(msg: ServerMessage): void;
   isOpen(): boolean;
+  readonly network: string; // see network.ts; peers only see their own network
 }
 
 // Transport-agnostic signaling logic; index.ts wires it to ws.
@@ -132,7 +134,7 @@ export class SignalingHub {
 
   private forward(sender: Connection, targetId: string, msg: ServerMessage) {
     const target = this.peers.get(targetId);
-    if (target?.isOpen()) {
+    if (target?.isOpen() && target.network === sender.network) {
       target.send(msg);
     } else {
       this.error(sender, "peer-unreachable", `peer ${targetId} is offline`);
@@ -140,9 +142,15 @@ export class SignalingHub {
   }
 
   private broadcastPeerList() {
-    const msg: ServerMessage = { type: "peer-list", peers: this.peers.list() };
-    for (const conn of this.peers.connections()) {
-      if (conn.isOpen()) conn.send(msg);
+    const byNetwork = new Map<string, PeerMeta[]>();
+    for (const [meta, conn] of this.peers.entries()) {
+      const list = byNetwork.get(conn.network) ?? [];
+      list.push(meta);
+      byNetwork.set(conn.network, list);
+    }
+    for (const [, conn] of this.peers.entries()) {
+      const peers = byNetwork.get(conn.network) ?? [];
+      if (conn.isOpen()) conn.send({ type: "peer-list", peers });
     }
   }
 

@@ -5,6 +5,7 @@ import { SignalingHub, type Connection } from "./hub.ts";
 class FakeConn implements Connection {
   inbox: ServerMessage[] = [];
   open = true;
+  constructor(readonly network = "local") {}
   send(msg: ServerMessage) {
     this.inbox.push(msg);
   }
@@ -119,6 +120,32 @@ describe("SignalingHub", () => {
       now = 1_000;
       register(hub, other, "alice", "b".repeat(32));
       expect(other.last()).toMatchObject({ type: "peer-list" });
+    });
+  });
+
+  describe("network scoping", () => {
+    it("only lists peers on the same network", () => {
+      const remote = new FakeConn("v4:41.90.1.2");
+      register(hub, remote, "carol");
+      expect(remote.last()).toEqual({
+        type: "peer-list",
+        peers: [expect.objectContaining({ peerId: "carol" })],
+      });
+      expect(a.last()).toEqual({
+        type: "peer-list",
+        peers: [
+          expect.objectContaining({ peerId: "alice" }),
+          expect.objectContaining({ peerId: "bob" }),
+        ],
+      });
+    });
+
+    it("does not relay pair requests across networks", () => {
+      const remote = new FakeConn("v4:41.90.1.2");
+      register(hub, remote, "carol");
+      send(hub, remote, { type: "pair-request", targetId: "alice" });
+      expect(remote.last()).toMatchObject({ type: "error", code: "peer-unreachable" });
+      expect(a.ofType("pair-request")).toHaveLength(0);
     });
   });
 

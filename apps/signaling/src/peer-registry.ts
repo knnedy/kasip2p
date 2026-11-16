@@ -17,11 +17,7 @@ export class PeerRegistry<C> {
     return this.peers.delete(peerId);
   }
 
-  list(): PeerMeta[] {
-    return Array.from(this.peers.values(), (p) => p.meta);
-  }
-
-  connections(): C[] {
-    return Array.from(this.peers.values(), (p) => p.conn);
+  entries(): [PeerMeta, C][] {
+    return Array.from(this.peers.values(), (p) => [p.meta, p.conn]);
   }
 }

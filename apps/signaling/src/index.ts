@@ -1,3 +1,4 @@
+import type { IncomingMessage } from "node:http";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { WebSocket, WebSocketServer } from "ws";
@@ -7,6 +8,7 @@ import {
   parseAllowedOrigins,
 } from "./config.ts";
 import { startHeartbeat } from "./heartbeat.ts";
+import { clientIp, networkKey } from "./network.ts";
 import { SignalingHub, type Connection } from "./hub.ts";
 
 const app = new Hono();
@@ -15,11 +17,14 @@ const hub = new SignalingHub();
 setInterval(() => hub.sweep(), 30_000).unref();
 startHeartbeat(wss, Number(process.env["HEARTBEAT_MS"] ?? 30_000));
 const allowedOrigins = parseAllowedOrigins(process.env["ALLOWED_ORIGINS"]);
+const trustProxy = process.env["TRUST_PROXY"] === "true";
 
 app.get("/ping", (c) => c.text("kasip2p signaling online"));
 
-wss.on("connection", (socket) => {
+wss.on("connection", (socket, req: IncomingMessage) => {
+  const ip = clientIp(req.headers["x-forwarded-for"], req.socket.remoteAddress, trustProxy);
   const conn: Connection = {
+    network: networkKey(ip),
     send: (msg) => socket.send(JSON.stringify(msg)),
     isOpen: () => socket.readyState === WebSocket.OPEN,
   };
