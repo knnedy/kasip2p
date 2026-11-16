@@ -92,6 +92,16 @@ export function createReceiver(callbacks: ReceiverCallbacks) {
   let chunks: ArrayBuffer[] = [];
   let received = 0;
 
+  // Completion is by byte count, so empty files finish on their file-meta alone.
+  function completeIfDone() {
+    if (!meta || received < meta.size) return;
+    const file = new File(chunks, meta.name, { type: meta.mimeType });
+    const done = meta;
+    meta = null;
+    chunks = [];
+    callbacks.onComplete(done, file);
+  }
+
   return function handleData(data: string | ArrayBuffer) {
     if (typeof data === "string") {
       const msg = parsePeerMessage(data);
@@ -100,6 +110,7 @@ export function createReceiver(callbacks: ReceiverCallbacks) {
         chunks = [];
         received = 0;
         callbacks.onStart(msg);
+        completeIfDone();
       }
       return;
     }
@@ -109,13 +120,6 @@ export function createReceiver(callbacks: ReceiverCallbacks) {
     chunks.push(data);
     received += data.byteLength;
     callbacks.onProgress(meta, received);
-
-    if (chunks.length === meta.totalChunks) {
-      const file = new File(chunks, meta.name, { type: meta.mimeType });
-      const done = meta;
-      meta = null;
-      chunks = [];
-      callbacks.onComplete(done, file);
-    }
+    completeIfDone();
   };
 }

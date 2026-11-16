@@ -74,6 +74,36 @@ describe("sendFile + createReceiver", () => {
     );
   });
 
+  it("completes a zero-byte file", async () => {
+    const sink = new FakeSink();
+    await sendFile(sink, makeFile(0, "empty.txt"), "t0", () => {});
+    expect(sink.sent).toHaveLength(1); // meta only
+
+    const onComplete = vi.fn<(meta: FileMeta, file: File) => void>();
+    const receive = createReceiver({ onStart: vi.fn(), onProgress: vi.fn(), onComplete });
+    sink.sent.forEach(receive);
+
+    expect(onComplete).toHaveBeenCalledOnce();
+    const [, file] = onComplete.mock.calls[0]!;
+    expect(file.name).toBe("empty.txt");
+    expect(file.size).toBe(0);
+  });
+
+  it("handles back-to-back files on one channel", async () => {
+    const sink = new FakeSink();
+    await sendFile(sink, makeFile(0, "a"), "t1", () => {});
+    await sendFile(sink, makeFile(10, "b"), "t2", () => {});
+
+    const onComplete = vi.fn<(meta: FileMeta, file: File) => void>();
+    const receive = createReceiver({ onStart: vi.fn(), onProgress: vi.fn(), onComplete });
+    sink.sent.forEach(receive);
+
+    expect(onComplete.mock.calls.map(([m, f]) => [m.transferId, f.size])).toEqual([
+      ["t1", 0],
+      ["t2", 10],
+    ]);
+  });
+
   it("ignores binary data that arrives before any file-meta", () => {
     const onProgress = vi.fn();
     const receive = createReceiver({ onStart: vi.fn(), onProgress, onComplete: vi.fn() });
