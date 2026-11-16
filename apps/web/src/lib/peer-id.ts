@@ -17,6 +17,12 @@ export function getOrCreatePeerId(): string {
   return getOrCreate(ID_KEY, generateId);
 }
 
+// Used when the server says our id belongs to someone else: start fresh.
+export function resetPeerIdentity() {
+  localStorage.removeItem(ID_KEY);
+  localStorage.removeItem(SECRET_KEY);
+}
+
 // Sent with register so the server can refuse anyone else claiming our id.
 export function getOrCreatePeerSecret(): string {
   return getOrCreate(SECRET_KEY, () => {

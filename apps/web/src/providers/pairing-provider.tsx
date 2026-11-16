@@ -6,6 +6,7 @@ import { signalingClient } from "@/lib/signaling/ws-client";
 import { peerManager } from "@/lib/webrtc/peer-manager";
 import { useIncomingPair } from "@/hooks/use-incoming-pair";
 import { PairRequestModal } from "@/components/pair-request-modal";
+import { ConnectionStatus } from "@/components/connection-status";
 import type { PeerMeta } from "@kasip2p/shared";
 
 export function PairingProvider({ children }: { children: React.ReactNode }) {
@@ -32,6 +33,7 @@ export function PairingProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      <ConnectionStatus />
       {children}
       {incoming && <PairRequestModal incoming={incoming} onDismiss={dismiss} />}
     </>

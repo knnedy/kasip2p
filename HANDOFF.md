@@ -21,7 +21,7 @@ Current: Stage 2 (reliability + security) on `feat/reliability-security`.
 - [x] 4. feat(signaling): heartbeat and stale-peer cleanup
 - [x] 5. fix(signaling): bind peer id to its owner
 - [x] 6. feat(signaling): scope discovery by network
-- [ ] 7. feat(web): resilient ws-client
+- [x] 7. feat(web): resilient ws-client
 - [ ] 8. feat(web): generate 6-digit PIN with crypto
 - [ ] 9. feat(web): configurable ICE servers and ICE restart
 - [ ] 10. fix(web): open a single data channel per pair (two-device check)
@@ -34,13 +34,13 @@ Current: Stage 2 (reliability + security) on `feat/reliability-security`.
 
 ## Next 3 steps
 
-1. feat(web): resilient ws-client
-2. feat(web): generate 6-digit PIN with crypto
-3. feat(web): configurable ICE servers and ICE restart
+1. feat(web): generate 6-digit PIN with crypto
+2. feat(web): configurable ICE servers and ICE restart
+3. fix(web): open a single data channel per pair (two-device check)
 
 ## Half-done files
 
-- pair page ignores pin-expired/too-many-attempts until step 8; ws-client must handle peer-id-taken in step 7; verify TRUST_PROXY/XFF behaviour on Render after deploy
+- pair page ignores pin-expired/too-many-attempts until step 8; verify TRUST_PROXY/XFF behaviour on Render after deploy
 
 ## Stage 1 (done, merged)
 
