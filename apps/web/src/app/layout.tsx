@@ -20,9 +20,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "KasiP2P",
   description: "Local network peer-to-peer file sharing",
-  icons: {
-    icon: "/favicon.svg",
-  },
 };
 
 export default function RootLayout({
