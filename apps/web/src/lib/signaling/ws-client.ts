@@ -1,3 +1,4 @@
+import { getOrCreatePeerSecret } from "@/lib/peer-id";
 import {
   parseServerMessage,
   type ClientMessage,
@@ -24,7 +25,11 @@ class SignalingClient {
     this.socket = new WebSocket(`${getSignalUrl()}/ws`);
 
     this.socket.onopen = () => {
-      this.send({ type: "register", meta: getDeviceMeta(peerId) });
+      this.send({
+        type: "register",
+        meta: getDeviceMeta(peerId),
+        secret: getOrCreatePeerSecret(),
+      });
     };
 
     this.socket.onmessage = (event) => {

@@ -3,6 +3,9 @@ import { peerIdSchema, peerMetaSchema } from "../domain.ts";
 
 export const pinSchema = z.string().regex(/^\d{4,8}$/);
 
+// Random per-device value proving ownership of a peerId across reconnects.
+export const peerSecretSchema = z.string().regex(/^[0-9a-f]{32,128}$/);
+
 export const sdpSchema = z.object({
   type: z.enum(["offer", "answer", "pranswer", "rollback"]),
   sdp: z.string().max(100_000),
@@ -17,7 +20,12 @@ export const iceCandidateSchema = z.object({
 
 // Client -> server. No fromId: the server stamps it from the registered socket.
 export const clientMessageSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("register"), meta: peerMetaSchema }),
+  z.object({
+    type: z.literal("register"),
+    meta: peerMetaSchema,
+    secret: peerSecretSchema,
+  }),
+  z.object({ type: z.literal("ping") }),
   z.object({ type: z.literal("pair-request"), targetId: peerIdSchema }),
   z.object({
     type: z.literal("pair-pin"),
@@ -51,6 +59,7 @@ export type ErrorCode = z.infer<typeof errorCodeSchema>;
 // Server -> client. fromId is always set by the server, never trusted from a client.
 export const serverMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("peer-list"), peers: z.array(peerMetaSchema) }),
+  z.object({ type: z.literal("pong") }),
   z.object({ type: z.literal("pair-request"), fromId: peerIdSchema }),
   z.object({ type: z.literal("pair-accept"), fromId: peerIdSchema }),
   z.object({ type: z.literal("pair-reject"), fromId: peerIdSchema }),

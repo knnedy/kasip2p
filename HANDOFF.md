@@ -1,59 +1,49 @@
 # HANDOFF
 
 Working log for the staged refactor. Stage 1 merged into `main` (93006f0).
-Stage 2 branch: `feat/reliability-security`.
+Current: Stage 2 (reliability + security) on `feat/reliability-security`.
 
-## Done (Stage 2 branch, pre-plan housekeeping)
+## Stage 2 decisions
 
-- fix(web): read dev origins from env and default signal URL to page host
-- chore(claude): add project settings
+- discovery scoped by public IP (x-forwarded-for)
+- resume within the same session only (sender still holds the File)
+- no default STUN; NEXT_PUBLIC_ICE_SERVERS opts in to STUN/TURN
+- received files stream to OPFS, in-memory fallback
+- PIN becomes 6 digits; peer-id ownership via a per-device secret
+- two-device checks after steps 10, 12 and 15
 
-## Decisions (Stage 1)
+## Stage 2 plan
 
-- shared is consumed as source (.ts import specifiers); signaling bundled with tsup; web uses transpilePackages
-- state machines are plain reducers (no XState)
-- server stamps fromId from the socket; PIN bound to the approver of a pending request
-- discovery scoping deferred
-- vitest in every package
-
-## Done (Stage 1: hygiene + architecture)
-
-- chore(repo): remove committed build artifacts
-- chore(web): remove Next.js boilerplate
-- fix(web): remove reference to missing favicon.svg
-- build(repo): add typecheck, lint, build scripts
-- build(shared): consume shared as source; bundle signaling
-- build(repo): add vitest
-- docs(repo): fix README setup and add .env.example
-- ci: add typecheck, lint, test, build workflow
-- feat(shared): add zod signaling protocol
-- refactor(signaling): validate messages and stamp fromId
-- fix(signaling): bind PIN to the device that received the pair request
-- build(shared): import with .ts extensions
-- refactor(web): validate signaling messages in ws-client
-- refactor(web): model pairing as a state machine
-- refactor(web): add transfer state machine
-- fix(web): create the peer id before the provider connects
-- refactor(web): split peer-manager, chunk-utils, use-webrtc (two-device test passed)
-- refactor(web): extract shared OsIcon component
+- [x] chore pre-plan: fix(web) dev origins from env; chore(claude) project settings
+- [x] 1. feat(shared): add register secret and ping/pong
+- [ ] 2. fix(signaling): limit message size and check origin
+- [ ] 3. feat(signaling): harden PIN pairing
+- [ ] 4. feat(signaling): heartbeat and stale-peer cleanup
+- [ ] 5. fix(signaling): bind peer id to its owner
+- [ ] 6. feat(signaling): scope discovery by network
+- [ ] 7. feat(web): resilient ws-client
+- [ ] 8. feat(web): generate 6-digit PIN with crypto
+- [ ] 9. feat(web): configurable ICE servers and ICE restart
+- [ ] 10. fix(web): open a single data channel per pair (two-device check)
+- [ ] 11. perf(web): throttle progress updates
+- [ ] 12. perf(web): event-driven backpressure and adaptive chunk size (two-device check)
+- [ ] 13. fix(web): complete zero-byte transfers
+- [ ] 14. feat(web): stream received files to disk
+- [ ] 15. feat(web): resume interrupted transfers (two-device check)
+- [ ] 16. fix(web): revoke object URLs
 
 ## Next 3 steps
 
-1. Plan Stage 2 (reliability + security) and wait for approval
-2. Data channel throughput (user saw 0.4 MB/s phone<->laptop)
-3. ws-client: reconnect/heartbeat/re-announce, cold-start UX
+1. fix(signaling): limit message size and check origin
+2. feat(signaling): harden PIN pairing
+3. feat(signaling): heartbeat and stale-peer cleanup
 
 ## Half-done files
 
 - none
 
-## Carried to Stage 2
+## Stage 1 (done, merged)
 
-- throughput: progress dispatch per 64KB chunk re-renders the page (likely cause of 0.4 MB/s);
-  polling backpressure; chunk size not from sctp.maxMessageSize; not yet measured in a prod build
-- 0-byte files never complete on the receiver (totalChunks 0)
-- whole file held in memory on receive; 16MB buffer threshold near Chrome's send-queue cap
-- both sides call connect(): two "files" channels, last one wins
-- register can take over another peer's id (needs a per-peer secret)
-- discovery is global, not per network
-- idb object URLs never revoked
+Hygiene, scripts, CI, vitest, zod protocol in shared, signaling hub split with server-stamped
+fromId, pairing and transfer reducers, peer-manager/chunk-utils/use-webrtc split, OsIcon.
+Security fixes: PIN bound to approver; first-visit peer id. See git log 7cab8e2..93006f0.

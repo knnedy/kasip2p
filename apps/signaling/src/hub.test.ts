@@ -19,12 +19,18 @@ class FakeConn implements Connection {
   }
 }
 
-function register(hub: SignalingHub, conn: FakeConn, peerId: string) {
+function register(
+  hub: SignalingHub,
+  conn: FakeConn,
+  peerId: string,
+  secret = Buffer.from(peerId).toString("hex").padEnd(32, "0"),
+) {
   hub.handleRaw(
     conn,
     JSON.stringify({
       type: "register",
       meta: { peerId, name: peerId, os: "linux", deviceType: "desktop" },
+      secret,
     }),
   );
 }

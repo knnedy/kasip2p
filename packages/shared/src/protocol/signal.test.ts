@@ -7,11 +7,23 @@ const meta = {
   os: "linux",
   deviceType: "desktop",
 };
+const secret = "a".repeat(32);
 
 describe("parseClientMessage", () => {
   it("accepts a register message", () => {
-    const result = parseClientMessage(JSON.stringify({ type: "register", meta }));
-    expect(result).toEqual({ ok: true, message: { type: "register", meta } });
+    const msg = { type: "register", meta, secret };
+    expect(parseClientMessage(JSON.stringify(msg))).toEqual({ ok: true, message: msg });
+  });
+
+  it("requires a well-formed secret on register", () => {
+    for (const bad of [undefined, "short", "Z".repeat(32)]) {
+      const result = parseClientMessage(JSON.stringify({ type: "register", meta, secret: bad }));
+      expect(result.ok).toBe(false);
+    }
+  });
+
+  it("accepts ping", () => {
+    expect(parseClientMessage(JSON.stringify({ type: "ping" })).ok).toBe(true);
   });
 
   it("strips a client-supplied fromId so the server cannot be spoofed", () => {
