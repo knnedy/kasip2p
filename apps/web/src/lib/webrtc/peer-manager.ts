@@ -1,10 +1,8 @@
 import type { ServerMessage } from "@kasip2p/shared";
 import { signalingClient } from "@/lib/signaling/ws-client";
+import { rtcConfig } from "./ice-config";
 
-const ICE_CONFIG: RTCConfiguration = {
-  iceServers: [],
-  iceTransportPolicy: "all",
-};
+const MAX_ICE_RESTARTS = 3;
 
 export type ChannelData = string | ArrayBuffer;
 type MessageHandler = (remoteId: string, data: ChannelData) => void;
@@ -16,6 +14,7 @@ class PeerManager {
   private connections = new Map<string, RTCPeerConnection>();
   private channels = new Map<string, RTCDataChannel>();
   private makingOffer = new Map<string, boolean>();
+  private iceRestarts = new Map<string, number>();
   private handler: MessageHandler | null = null;
   private queued: [string, ChannelData][] = [];
 
@@ -43,6 +42,7 @@ class PeerManager {
     this.connections.delete(remoteId);
     this.channels.delete(remoteId);
     this.makingOffer.delete(remoteId);
+    this.iceRestarts.delete(remoteId);
   }
 
   // Messages received while no handler is set are queued, then flushed here.
@@ -69,8 +69,22 @@ class PeerManager {
     const existing = this.connections.get(remoteId);
     if (existing) return existing;
 
-    const pc = new RTCPeerConnection(ICE_CONFIG);
+    const pc = new RTCPeerConnection(rtcConfig());
     this.connections.set(remoteId, pc);
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === "connected") this.iceRestarts.set(remoteId, 0);
+      if (pc.connectionState !== "failed") return;
+      const restarts = this.iceRestarts.get(remoteId) ?? 0;
+      if (restarts >= MAX_ICE_RESTARTS) {
+        console.error(`connection to ${remoteId} failed after ${restarts} ICE restarts`);
+        this.close(remoteId);
+        return;
+      }
+      // fires negotiationneeded; the offer carries fresh ICE credentials
+      this.iceRestarts.set(remoteId, restarts + 1);
+      pc.restartIce();
+    };
 
     pc.onnegotiationneeded = async () => {
       try {

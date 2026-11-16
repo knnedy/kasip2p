@@ -23,7 +23,7 @@ Current: Stage 2 (reliability + security) on `feat/reliability-security`.
 - [x] 6. feat(signaling): scope discovery by network
 - [x] 7. feat(web): resilient ws-client
 - [x] 8. feat(web): generate 6-digit PIN with crypto
-- [ ] 9. feat(web): configurable ICE servers and ICE restart
+- [x] 9. feat(web): configurable ICE servers and ICE restart
 - [ ] 10. fix(web): open a single data channel per pair (two-device check)
 - [ ] 11. perf(web): throttle progress updates
 - [ ] 12. perf(web): event-driven backpressure and adaptive chunk size (two-device check)
@@ -34,9 +34,9 @@ Current: Stage 2 (reliability + security) on `feat/reliability-security`.
 
 ## Next 3 steps
 
-1. feat(web): configurable ICE servers and ICE restart
-2. fix(web): open a single data channel per pair (two-device check)
-3. perf(web): throttle progress updates
+1. fix(web): open a single data channel per pair (two-device check)
+2. perf(web): throttle progress updates
+3. perf(web): event-driven backpressure and adaptive chunk size (two-device check)
 
 ## Half-done files
 

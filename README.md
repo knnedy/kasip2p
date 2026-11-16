@@ -139,6 +139,8 @@ CI runs the same commands on every push and pull request.
 2. Set the project's Root Directory to `apps/web` (Vercel detects Next.js and pnpm)
 3. Add this environment variable in the Vercel dashboard:
    `NEXT_PUBLIC_SIGNAL_URL=wss://<your-render-url>`
+4. Optional, for devices on different networks: `NEXT_PUBLIC_ICE_SERVERS` with STUN/TURN servers
+   (see `apps/web/.env.example`). Without it, connections are LAN-only.
 
 ## Security
 
