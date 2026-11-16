@@ -48,7 +48,7 @@ describe("pairingReducer", () => {
     expect(run(approver, "pin-submitted", "pin-incorrect", "pin-edited")).toBe(approver);
   });
 
-  it.each(["rejected", "unreachable"] as const)("ends on %s from any live state", (type) => {
+  it.each(["rejected", "unreachable", "expired", "locked"] as const)("ends on %s from any live state", (type) => {
     expect(run(requester, type).status).toBe(type);
     expect(run(requester, "pin-submitted", type).status).toBe(type);
     expect(run(approver, type).status).toBe(type);

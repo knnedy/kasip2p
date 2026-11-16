@@ -7,7 +7,9 @@ export type PairingState =
   | { status: "showing-pin"; role: "approver" }
   | { status: "paired"; role: PairingRole }
   | { status: "rejected"; role: PairingRole }
-  | { status: "unreachable"; role: PairingRole };
+  | { status: "unreachable"; role: PairingRole }
+  | { status: "expired"; role: PairingRole }
+  | { status: "locked"; role: PairingRole };
 
 export type PairingEvent =
   | { type: "pin-edited" }
@@ -15,7 +17,9 @@ export type PairingEvent =
   | { type: "pin-incorrect" }
   | { type: "accepted" }
   | { type: "rejected" }
-  | { type: "unreachable" };
+  | { type: "unreachable" }
+  | { type: "expired" }
+  | { type: "locked" };
 
 export function initialPairingState(role: PairingRole): PairingState {
   return role === "requester"
@@ -24,7 +28,9 @@ export function initialPairingState(role: PairingRole): PairingState {
 }
 
 export function isPairingDone(state: PairingState): boolean {
-  return ["paired", "rejected", "unreachable"].includes(state.status);
+  return ["paired", "rejected", "unreachable", "expired", "locked"].includes(
+    state.status,
+  );
 }
 
 // Events that do not apply to the current state are ignored.
@@ -38,7 +44,9 @@ export function pairingReducer(
     case "rejected":
       return { status: "rejected", role: state.role };
     case "unreachable":
-      return { status: "unreachable", role: state.role };
+    case "expired":
+    case "locked":
+      return { status: event.type, role: state.role };
     case "pin-edited":
       return state.status === "awaiting-pin" && state.pinError
         ? { ...state, pinError: false }

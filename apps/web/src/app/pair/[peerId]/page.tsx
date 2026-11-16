@@ -13,10 +13,14 @@ import {
 import { usePeers } from "@/hooks/use-peers";
 import { Zap, ArrowLeft, Shield } from "lucide-react";
 import { OsIcon } from "@/components/os-icon";
+import { generatePin, PIN_LENGTH } from "@/lib/pairing/pin";
 
-function generatePin(): string {
-  return Math.floor(1000 + Math.random() * 9000).toString();
-}
+const FAILURE_COPY = {
+  rejected: ["Pairing rejected", "The other device declined the request"],
+  unreachable: ["Device unreachable", "The other device went offline"],
+  expired: ["PIN expired", "Start pairing again to get a new PIN"],
+  locked: ["Too many attempts", "Start pairing again to get a new PIN"],
+} as const;
 
 
 export default function PairPage() {
@@ -49,6 +53,10 @@ export default function PairPage() {
   const [enteredPin, setEnteredPin] = useState<string>("");
   const pinInputRef = useRef<HTMLInputElement>(null);
   const pinError = state.status === "awaiting-pin" && state.pinError;
+  const failure =
+    state.status in FAILURE_COPY
+      ? FAILURE_COPY[state.status as keyof typeof FAILURE_COPY]
+      : null;
 
   const qrValue = JSON.stringify({
     peerId: localPeerId,
@@ -88,6 +96,12 @@ export default function PairPage() {
       if (msg.type === "error" && msg.code === "peer-unreachable") {
         dispatch({ type: "unreachable" });
       }
+      if (msg.type === "error" && msg.code === "pin-expired") {
+        dispatch({ type: "expired" });
+      }
+      if (msg.type === "error" && msg.code === "too-many-attempts") {
+        dispatch({ type: "locked" });
+      }
     });
 
     return () => cleanup();
@@ -104,7 +118,7 @@ export default function PairPage() {
   }, [pinError]);
 
   function handlePinSubmit() {
-    if (state.status !== "awaiting-pin" || enteredPin.length !== 4) return;
+    if (state.status !== "awaiting-pin" || enteredPin.length !== PIN_LENGTH) return;
     dispatch({ type: "pin-submitted" });
     signalingClient.send({
       type: "pair-confirm",
@@ -180,11 +194,11 @@ export default function PairPage() {
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                   Your PIN
                 </p>
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   {pin.split("").map((digit, i) => (
                     <div
                       key={i}
-                      className="flex h-14 w-12 items-center justify-center rounded-xl border border-[#00d9ff]/30 bg-[#00d9ff]/5 text-2xl font-bold text-[#00d9ff]">
+                      className="flex h-12 w-10 items-center justify-center rounded-xl border border-[#00d9ff]/30 bg-[#00d9ff]/5 text-2xl font-bold text-[#00d9ff]">
                       {digit}
                     </div>
                   ))}
@@ -214,15 +228,15 @@ export default function PairPage() {
                   ref={pinInputRef}
                   type="text"
                   inputMode="numeric"
-                  maxLength={4}
-                  placeholder="0000"
+                  maxLength={PIN_LENGTH}
+                  placeholder="000000"
                   value={enteredPin}
                   onChange={(e) => {
                     dispatch({ type: "pin-edited" });
                     setEnteredPin(e.target.value.replace(/\D/g, ""));
                   }}
                   onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
-                  className={`w-full rounded-xl border bg-background px-4 py-4 text-center text-3xl font-bold font-mono tracking-[1rem] text-foreground outline-none transition-colors ${
+                  className={`w-full rounded-xl border bg-background px-4 py-4 text-center text-3xl font-bold font-mono tracking-[0.5em] text-foreground outline-none transition-colors ${
                     pinError
                       ? "border-red-500/50 text-red-400"
                       : "border-border focus:border-[#00d9ff]/40"
@@ -236,7 +250,7 @@ export default function PairPage() {
                 <button
                   onClick={handlePinSubmit}
                   disabled={
-                    enteredPin.length !== 4 || state.status === "verifying"
+                    enteredPin.length !== PIN_LENGTH || state.status === "verifying"
                   }
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#00d9ff]/20 bg-[#00d9ff]/10 py-3 text-sm font-medium text-[#00d9ff] transition-all hover:bg-[#00d9ff]/20 disabled:opacity-40">
                   <Zap className="h-4 w-4" />
@@ -258,16 +272,16 @@ export default function PairPage() {
             </div>
           )}
 
-          {(state.status === "rejected" || state.status === "unreachable") && (
+          {failure && (
             <div className="flex flex-col items-center gap-4 py-6 text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-full border border-red-500/30 bg-red-500/10">
                 <Shield className="h-6 w-6 text-red-400" />
               </div>
               <h2 className="text-xl font-bold text-foreground">
-                Pairing rejected
+                {failure[0]}
               </h2>
               <p className="text-xs text-muted-foreground">
-                The other device declined or is unreachable
+                {failure[1]}
               </p>
               <button
                 onClick={() => router.back()}

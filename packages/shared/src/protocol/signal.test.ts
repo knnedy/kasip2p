@@ -48,7 +48,7 @@ describe("parseClientMessage", () => {
     expect(result.ok).toBe(false);
   });
 
-  it.each(["12a4", "123", "123456789", ""])("rejects pin %j", (pin) => {
+  it.each(["12a456", "1234", "12345", "1234567", ""])("rejects pin %j", (pin) => {
     const result = parseClientMessage(
       JSON.stringify({ type: "pair-confirm", targetId: "abc", pin }),
     );

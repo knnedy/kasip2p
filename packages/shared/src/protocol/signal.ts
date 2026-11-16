@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { peerIdSchema, peerMetaSchema } from "../domain.ts";
 
-export const pinSchema = z.string().regex(/^\d{4,8}$/);
+export const pinSchema = z.string().regex(/^\d{6}$/);
 
 // Random per-device value proving ownership of a peerId across reconnects.
 export const peerSecretSchema = z.string().regex(/^[0-9a-f]{32,128}$/);
