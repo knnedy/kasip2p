@@ -3,6 +3,14 @@ import { signalingClient } from "@/lib/signaling/ws-client";
 import { rtcConfig } from "./ice-config";
 
 const MAX_ICE_RESTARTS = 3;
+const RECONNECT_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000];
+const OPEN_TIMEOUT_MS = 10_000;
+
+// Each RTCPeerConnection has its own DTLS cert, so a new fingerprint means a new remote pc.
+export function sdpFingerprint(sdp: string | undefined): string | null {
+  const match = sdp?.match(/^a=fingerprint:(.+)$/m);
+  return match ? match[1]!.trim() : null;
+}
 
 // Deterministic so both sides agree without extra signaling, even after a reload.
 export function isInitiator(localId: string, remoteId: string): boolean {
@@ -25,6 +33,11 @@ class PeerManager {
   private handler: MessageHandler | null = null;
   private queued: [string, ChannelData][] = [];
   private channelListeners = new Set<ChannelListener>();
+  private wanted = new Set<string>(); // remotes we keep reconnecting to (initiator side)
+  private reconnects = new Map<
+    string,
+    { attempt: number; timer: ReturnType<typeof setTimeout> | null }
+  >();
 
   start(localId: string) {
     if (!localId || this.localId === localId) return;
@@ -38,10 +51,14 @@ class PeerManager {
   // Only the smaller id opens the channel; the other side receives it via ondatachannel.
   connect(remoteId: string) {
     if (!isInitiator(this.localId, remoteId)) return;
+    this.wanted.add(remoteId);
     const existing = this.channels.get(remoteId);
     if (existing && existing.readyState !== "closed") return;
     const pc = this.ensureConnection(remoteId);
-    this.attachChannel(remoteId, pc.createDataChannel("files", { ordered: true }));
+    this.attachChannel(
+      remoteId,
+      pc.createDataChannel("files", { ordered: true }),
+    );
   }
 
   getOpenChannel(remoteId: string): RTCDataChannel | undefined {
@@ -52,6 +69,29 @@ class PeerManager {
   // Small control messages (e.g. file-accept) on the open channel, if any.
   sendControl(remoteId: string, message: string) {
     this.getOpenChannel(remoteId)?.send(message);
+  }
+
+  // Resolves with the open channel, waiting for a reconnect if needed.
+  waitForOpenChannel(
+    remoteId: string,
+    timeoutMs: number,
+  ): Promise<RTCDataChannel> {
+    const open = this.getOpenChannel(remoteId);
+    if (open) return Promise.resolve(open);
+    return new Promise((resolve, reject) => {
+      const stop = this.onChannelEvent((id, event) => {
+        const dc =
+          id === remoteId && event === "open" && this.getOpenChannel(remoteId);
+        if (!dc) return;
+        clearTimeout(timer);
+        stop();
+        resolve(dc);
+      });
+      const timer = setTimeout(() => {
+        stop();
+        reject(new Error("peer did not reconnect"));
+      }, timeoutMs);
+    });
   }
 
   onChannelEvent(listener: ChannelListener) {
@@ -66,7 +106,16 @@ class PeerManager {
     return this.connections.get(remoteId)?.sctp?.maxMessageSize;
   }
 
+  // Deliberate disconnect: stops reconnecting too.
   close(remoteId: string) {
+    this.wanted.delete(remoteId);
+    const reconnect = this.reconnects.get(remoteId);
+    if (reconnect?.timer) clearTimeout(reconnect.timer);
+    this.reconnects.delete(remoteId);
+    this.teardown(remoteId);
+  }
+
+  private teardown(remoteId: string) {
     this.connections.get(remoteId)?.close();
     this.connections.delete(remoteId);
     this.channels.delete(remoteId);
@@ -94,12 +143,43 @@ class PeerManager {
     const emit = (event: ChannelEvent) => {
       // ignore events from a channel that has since been replaced
       if (this.channels.get(remoteId) !== dc) return;
+      if (event === "open") this.resetReconnect(remoteId);
       this.channelListeners.forEach((l) => l(remoteId, event));
+      if (event === "close") this.scheduleReconnect(remoteId);
     };
     dc.onopen = () => emit("open");
     dc.onclose = () => emit("close");
     this.channels.set(remoteId, dc);
     if (dc.readyState === "open") emit("open");
+  }
+
+  private resetReconnect(remoteId: string) {
+    const entry = this.reconnects.get(remoteId);
+    if (entry?.timer) clearTimeout(entry.timer);
+    this.reconnects.delete(remoteId);
+  }
+
+  // Backoff, then a fresh channel (and pc if the old one is dead); retried until open.
+  private scheduleReconnect(remoteId: string) {
+    if (!this.wanted.has(remoteId)) return;
+    const entry = this.reconnects.get(remoteId) ?? { attempt: 0, timer: null };
+    if (entry.timer) return;
+    const delay = RECONNECT_DELAYS_MS[entry.attempt];
+    if (delay === undefined) {
+      console.error(`gave up reconnecting to ${remoteId}`);
+      return;
+    }
+    this.reconnects.set(remoteId, entry);
+    entry.timer = setTimeout(() => {
+      entry.attempt += 1;
+      const pc = this.connections.get(remoteId);
+      if (pc && pc.connectionState !== "connected") this.teardown(remoteId);
+      this.connect(remoteId);
+      entry.timer = setTimeout(() => {
+        entry.timer = null;
+        if (!this.getOpenChannel(remoteId)) this.scheduleReconnect(remoteId);
+      }, OPEN_TIMEOUT_MS);
+    }, delay);
   }
 
   private ensureConnection(remoteId: string): RTCPeerConnection {
@@ -114,8 +194,11 @@ class PeerManager {
       if (pc.connectionState !== "failed") return;
       const restarts = this.iceRestarts.get(remoteId) ?? 0;
       if (restarts >= MAX_ICE_RESTARTS) {
-        console.error(`connection to ${remoteId} failed after ${restarts} ICE restarts`);
-        this.close(remoteId);
+        console.error(
+          `connection to ${remoteId} failed after ${restarts} ICE restarts`,
+        );
+        this.teardown(remoteId);
+        this.scheduleReconnect(remoteId);
         return;
       }
       // fires negotiationneeded; the offer carries fresh ICE credentials
@@ -174,11 +257,21 @@ class PeerManager {
 
   // Perfect negotiation: the peer with the smaller id is polite and yields on glare.
   private async handleSdp(remoteId: string, sdp: RTCSessionDescriptionInit) {
+    const stale = this.connections.get(remoteId)?.remoteDescription;
+    // the remote rebuilt its pc (we missed the drop), so start over with it
+    if (
+      sdp.type === "offer" &&
+      stale &&
+      sdpFingerprint(stale.sdp) !== sdpFingerprint(sdp.sdp)
+    ) {
+      this.teardown(remoteId);
+    }
     const pc = this.ensureConnection(remoteId);
     const polite = this.localId < remoteId;
     const offerCollision =
       sdp.type === "offer" &&
-      ((this.makingOffer.get(remoteId) ?? false) || pc.signalingState !== "stable");
+      ((this.makingOffer.get(remoteId) ?? false) ||
+        pc.signalingState !== "stable");
 
     if (!polite && offerCollision) return;
 

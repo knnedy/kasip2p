@@ -232,8 +232,9 @@ describe("sendFile + createReceiver", () => {
       suspend,
       abort: async () => {},
     });
+    const onSuspend = vi.fn();
     const receiver = createReceiver(
-      { onStart: vi.fn(), onProgress: vi.fn(), onComplete: vi.fn() },
+      { onStart: vi.fn(), onProgress: vi.fn(), onComplete: vi.fn(), onSuspend },
       store,
     );
     receiver.handle(meta("t", 10));
@@ -241,6 +242,9 @@ describe("sendFile + createReceiver", () => {
     receiver.suspend();
     await flush();
     expect(suspend).toHaveBeenCalledOnce();
+    expect(onSuspend).toHaveBeenCalledWith(expect.objectContaining({ transferId: "t" }));
+    receiver.suspend(); // nothing in flight: no-op
+    expect(onSuspend).toHaveBeenCalledOnce();
   });
 
   it("ignores binary data that arrives before any file-meta", () => {

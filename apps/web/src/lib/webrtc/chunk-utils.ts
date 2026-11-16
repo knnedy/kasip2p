@@ -131,6 +131,7 @@ export interface ReceiverCallbacks {
   onProgress(meta: FileMeta, transferredBytes: number): void;
   onComplete(meta: FileMeta, file: File): void | Promise<void>;
   onError?(meta: FileMeta, error: unknown): void;
+  onSuspend?(meta: FileMeta): void; // interrupted; partial kept for a resume
 }
 
 interface Incoming {
@@ -195,6 +196,7 @@ export function createReceiver(
     if (!incoming) return;
     current = null;
     enqueue(incoming, (store) => store.suspend());
+    callbacks.onSuspend?.(incoming.meta);
   }
 
   function handle(data: string | ArrayBuffer) {

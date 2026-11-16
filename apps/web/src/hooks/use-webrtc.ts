@@ -13,7 +13,10 @@ import { activeTransfers, transfersReducer } from "@/lib/transfer/machine";
 import { createProgressThrottle } from "@/lib/transfer/progress-throttle";
 import { createIncomingStore, removeIncoming } from "@/lib/transfer/file-store";
 import { saveTransfer } from "@/lib/store/idb";
+import { sendWithRetry } from "@/lib/transfer/retry";
 import { generateId } from "@/lib/utils";
+
+const REOPEN_TIMEOUT_MS = 30_000;
 
 // React glue: binds peerManager + chunk-utils to the transfer reducer and history.
 export function useWebRTC(
@@ -88,6 +91,14 @@ export function useWebRTC(
             });
             onCompleteRef.current?.();
           },
+          onSuspend: (meta) => {
+            progress.finish(meta.transferId);
+            dispatch({
+              type: "failed",
+              transferId: meta.transferId,
+              reason: "interrupted",
+            });
+          },
           onError: (meta, err) => {
             progress.finish(meta.transferId);
             dispatch({
@@ -135,12 +146,6 @@ export function useWebRTC(
   }
 
   async function transfer(targetId: string, file: File) {
-    const dc = peerManager.getOpenChannel(targetId);
-    if (!dc) {
-      console.error("data channel not open");
-      return;
-    }
-
     const transferId = generateId();
     dispatch({
       type: "started",
@@ -155,13 +160,21 @@ export function useWebRTC(
     });
 
     try {
-      await sendFile(
-        dc,
-        file,
-        transferId,
-        (transferredBytes) => progress.report(transferId, transferredBytes),
-        chooseChunkSize(peerManager.getMaxMessageSize(targetId)),
-        accepts.wait,
+      // same transferId on every attempt, so the receiver resumes its partial
+      await sendWithRetry(
+        () => {
+          peerManager.connect(targetId);
+          return peerManager.waitForOpenChannel(targetId, REOPEN_TIMEOUT_MS);
+        },
+        (dc) =>
+          sendFile(
+            dc,
+            file,
+            transferId,
+            (transferredBytes) => progress.report(transferId, transferredBytes),
+            chooseChunkSize(peerManager.getMaxMessageSize(targetId)),
+            accepts.wait,
+          ),
       );
     } catch (err) {
       progress.finish(transferId);

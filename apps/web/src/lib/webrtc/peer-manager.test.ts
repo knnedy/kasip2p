@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isInitiator } from "./peer-manager";
+import { isInitiator, sdpFingerprint } from "./peer-manager";
 
 describe("isInitiator", () => {
   it("picks exactly one side of every pair", () => {
@@ -10,5 +10,17 @@ describe("isInitiator", () => {
         expect(isInitiator(a, b)).not.toBe(isInitiator(b, a));
       }
     }
+  });
+});
+
+describe("sdpFingerprint", () => {
+  it("extracts the DTLS fingerprint line", () => {
+    const sdp = "v=0\r\na=fingerprint:sha-256 AB:CD:EF\r\na=setup:actpass\r\n";
+    expect(sdpFingerprint(sdp)).toBe("sha-256 AB:CD:EF");
+  });
+
+  it("returns null when absent", () => {
+    expect(sdpFingerprint("v=0\r\n")).toBeNull();
+    expect(sdpFingerprint(undefined)).toBeNull();
   });
 });
