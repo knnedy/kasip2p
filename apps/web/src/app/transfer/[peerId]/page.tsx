@@ -6,6 +6,7 @@ import { getOrCreatePeerId } from "@/lib/peer-id";
 import { useWebRTC } from "@/hooks/use-webrtc";
 import { usePeers } from "@/hooks/use-peers";
 import { getTransfers } from "@/lib/store/idb";
+import { downloadBlob } from "@/lib/download";
 import { ArrowLeft, Upload, Zap, CheckCircle, Clock } from "lucide-react";
 import { OsIcon } from "@/components/os-icon";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -187,7 +188,7 @@ export default function TransferPage() {
                 History
               </p>
             </div>
-            {peerHistory.map(({ record, downloadUrl }) => (
+            {peerHistory.map(({ record, blob }) => (
               <div
                 key={record.id}
                 className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3">
@@ -202,14 +203,16 @@ export default function TransferPage() {
                     {new Date(record.completedAt).toLocaleTimeString()}
                   </p>
                 </div>
-                {record.direction === "received" && downloadUrl && (
-                  <a
-                    href={downloadUrl}
-                    download={record.fileName}
+                {record.direction === "received" && blob && (
+                  <button
+                    type="button"
                     className="shrink-0 rounded-lg border border-[#00d9ff]/20 bg-[#00d9ff]/5 px-3 py-1.5 text-xs font-medium text-[#00d9ff] transition-all hover:bg-[#00d9ff]/10"
-                    onClick={(e) => e.stopPropagation()}>
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      downloadBlob(blob, record.fileName);
+                    }}>
                     Download
-                  </a>
+                  </button>
                 )}
               </div>
             ))}

@@ -5,15 +5,13 @@ export async function saveTransfer(record: TransferRecord, blob?: Blob) {
   await set(record.id, { record, blob });
 }
 
+// Returns blobs, not object URLs; callers create URLs on demand (see lib/download).
 export async function getTransfers(): Promise<
-  { record: TransferRecord; downloadUrl?: string }[]
+  { record: TransferRecord; blob?: Blob }[]
 > {
   const all = await entries<string, { record: TransferRecord; blob?: Blob }>();
   return all
-    .map(([, value]) => ({
-      record: value.record,
-      downloadUrl: value.blob ? URL.createObjectURL(value.blob) : undefined,
-    }))
+    .map(([, value]) => ({ record: value.record, blob: value.blob }))
     .sort((a, b) => b.record.completedAt - a.record.completedAt);
 }
 

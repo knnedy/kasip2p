@@ -34,15 +34,17 @@ Current: Stage 2 (reliability + security) on `feat/reliability-security`.
   - [x] 15b. feat(shared): add file-accept peer message
   - [x] 15c. feat(web): resume partially received files
   - [x] 15d. feat(web): re-open dropped data channels and retry sends
-- [ ] 16. fix(web): revoke object URLs
+- [x] 16. fix(web): revoke object URLs
 
 ## Next 3 steps
 
-1. fix(web): revoke object URLs
+1. Merge feat/reliability-security into main (user approval)
+2. Two-device checks: large file, resume after Wi-Fi drop, signaling restart
+3. Stage 3: /grill-with-docs to pick features
 
 ## Half-done files
 
-- two-device resume check pending; accept waiters reject for all peers on any close (revisit for multi-peer); verify TRUST_PROXY/XFF on Render after deploy
+- Stage 2 complete; two-device checks after merge (resume, large file); verify TRUST_PROXY/XFF + ALLOWED_ORIGINS on Render; accept waiters reject for all peers on any close (revisit for multi-peer)
 
 ## Stage 1 (done, merged)
 
