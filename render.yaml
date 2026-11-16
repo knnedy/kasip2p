@@ -3,7 +3,7 @@ services:
     name: kasip2p-signaling
     runtime: node
     rootDir: .
-    buildCommand: pnpm install && pnpm --filter signaling build
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @kasip2p/signaling build
     startCommand: node apps/signaling/dist/index.js
     envVars:
       - key: PORT
