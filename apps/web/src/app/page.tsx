@@ -3,48 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { usePeers } from "@/hooks/use-peers";
 import type { PeerEntry } from "@/hooks/use-peers";
-import { siAndroid, siApple, siUbuntu, siLinux } from "simple-icons";
-import type { OS } from "@kasip2p/shared";
+import { OsIcon } from "@/components/os-icon";
 import { Zap, Shield, Wifi } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getOrCreatePeerId } from "@/lib/peer-id";
 
 const ACCENT = "#00d9ff";
 const ACCENT_DIM = "rgba(0,217,255,";
-
-const windowsPath =
-  "M0 0h11.377v11.372H0zm12.623 0H24v11.372H12.623zM0 12.623h11.377V24H0zm12.623 0H24V24H12.623z";
-
-function getOsIcon(os: OS) {
-  switch (os) {
-    case "android":
-      return { path: siAndroid.path, color: "#00d9ff" };
-    case "ios":
-    case "macos":
-      return { path: siApple.path, color: "#f1f5f9" };
-    case "windows":
-      return { path: windowsPath, color: "#00d9ff" };
-    case "linux":
-      return { path: siUbuntu.path, color: "#00d9ff" };
-    default:
-      return { path: siLinux.path, color: "#f1f5f9" };
-  }
-}
-
-function OsIcon({ os, size = 20 }: { os: OS; size?: number }) {
-  const { path, color } = getOsIcon(os);
-  return (
-    <svg
-      role="img"
-      viewBox="0 0 24 24"
-      width={size}
-      height={size}
-      fill={color}
-      aria-label={os}>
-      <path d={path} />
-    </svg>
-  );
-}
 
 function drawRadar(
   canvas: HTMLCanvasElement,
