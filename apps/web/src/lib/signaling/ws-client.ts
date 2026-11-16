@@ -1,6 +1,13 @@
-import type { SignalMessage, PeerMeta, OS, DeviceType } from "@kasip2p/shared";
+import {
+  parseServerMessage,
+  type ClientMessage,
+  type DeviceType,
+  type OS,
+  type PeerMeta,
+  type ServerMessage,
+} from "@kasip2p/shared";
 
-type MessageHandler = (msg: SignalMessage) => void;
+type MessageHandler = (msg: ServerMessage) => void;
 
 class SignalingClient {
   private socket: WebSocket | null = null;
@@ -18,16 +25,17 @@ class SignalingClient {
     this.socket = new WebSocket(`${url}/ws`);
 
     this.socket.onopen = () => {
-      this.send({ type: "register", peerId, meta: getDeviceMeta(peerId) });
+      this.send({ type: "register", meta: getDeviceMeta(peerId) });
     };
 
     this.socket.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data as string) as SignalMessage;
-        this.handlers.forEach((h) => h(msg));
-      } catch {
-        console.error("failed to parse signal message");
+      if (typeof event.data !== "string") return;
+      const parsed = parseServerMessage(event.data);
+      if (!parsed.ok) {
+        console.error("invalid signal message", parsed.error);
+        return;
       }
+      this.handlers.forEach((h) => h(parsed.message));
     };
 
     this.socket.onclose = () => {
@@ -35,7 +43,7 @@ class SignalingClient {
     };
   }
 
-  send(msg: SignalMessage) {
+  send(msg: ClientMessage) {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(msg));
     }
@@ -76,12 +84,10 @@ function getDeviceMeta(peerId: string): PeerMeta {
       ? "tablet"
       : "desktop";
 
-  return {
-    peerId,
-    name: `${navigator.platform}`,
-    os,
-    deviceType,
-  };
+  // server rejects empty or >64 char names; navigator.platform can be ""
+  const name = (navigator.platform || "Unknown device").slice(0, 64);
+
+  return { peerId, name, os, deviceType };
 }
 
 export const signalingClient = new SignalingClient();

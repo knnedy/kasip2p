@@ -41,7 +41,6 @@ export function setupPeerConnection(
       await pc.setLocalDescription();
       signalingClient.send({
         type: "sdp",
-        fromId: localId,
         targetId: remoteId,
         sdp: {
           type: pc.localDescription!.type as RTCSdpType,
@@ -59,7 +58,6 @@ export function setupPeerConnection(
     if (candidate) {
       signalingClient.send({
         type: "ice",
-        fromId: localId,
         targetId: remoteId,
         candidate: candidate.toJSON(),
       });
@@ -94,7 +92,6 @@ export async function handleSdp(
     await pc.setLocalDescription();
     signalingClient.send({
       type: "sdp",
-      fromId: localId,
       targetId: remoteId,
       sdp: {
         type: pc.localDescription!.type as RTCSdpType,

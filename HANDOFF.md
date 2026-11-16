@@ -24,17 +24,13 @@ Working log for the staged refactor on `refactor/architecture`.
 - refactor(signaling): validate messages and stamp fromId (hub/pairing/peer-registry split, 11 tests)
 - fix(signaling): bind PIN to the device that received the pair request
 - build(shared): import with .ts extensions (Turbopack can't map .js -> .ts in shared source)
+- refactor(web): validate signaling messages in ws-client (legacy SignalMessage removed)
 
 ## Next 3 steps
 
-1. refactor(web): validate signaling messages in ws-client; drop legacy SignalMessage
-2. refactor(web): model pairing as a state machine
-3. refactor(web): model transfer as a state machine
-
-## Notes for upcoming steps
-
-- web must fall back when navigator.platform is empty (PeerMeta.name requires 1-64 chars)
-- legacy.ts in shared is removed in the web ws-client step
+1. refactor(web): model pairing as a state machine
+2. refactor(web): model transfer as a state machine
+3. refactor(web): split peer-manager, chunk-utils, use-webrtc
 
 ## Half-done files
 

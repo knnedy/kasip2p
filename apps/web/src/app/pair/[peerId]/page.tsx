@@ -95,7 +95,6 @@ export default function PairPage() {
       // Device B registers its PIN with the server
       signalingClient.send({
         type: "pair-pin",
-        fromId: localPeerId,
         targetId,
         pin,
       });
@@ -103,7 +102,6 @@ export default function PairPage() {
       // Device A sends the pair request
       signalingClient.send({
         type: "pair-request",
-        fromId: localPeerId,
         targetId,
       });
     }
@@ -116,7 +114,7 @@ export default function PairPage() {
       if (msg.type === "pair-reject" && msg.fromId === targetId) {
         setPairingState("rejected");
       }
-      if (msg.type === "error") {
+      if (msg.type === "error" && msg.code === "incorrect-pin") {
         setPinError(true);
         setEnteredPin("");
         pinInputRef.current?.focus();
@@ -129,7 +127,6 @@ export default function PairPage() {
   function handlePinSubmit() {
     signalingClient.send({
       type: "pair-confirm",
-      fromId: localPeerId,
       targetId,
       pin: enteredPin,
     });
@@ -138,7 +135,6 @@ export default function PairPage() {
   function handleReject() {
     signalingClient.send({
       type: "pair-reject",
-      fromId: localPeerId,
       targetId,
     });
     router.back();
