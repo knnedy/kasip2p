@@ -1,6 +1,11 @@
 # HANDOFF
 
-Working log for the staged refactor. Stage 1 merged into `main`.
+Working log for the staged refactor. Stage 1 merged into `main` (93006f0).
+Stage 2 branch: `feat/reliability-security`.
+
+## Done (Stage 2 branch, pre-plan housekeeping)
+
+- fix(web): read dev origins from env and default signal URL to page host
 
 ## Decisions (Stage 1)
 
@@ -33,9 +38,9 @@ Working log for the staged refactor. Stage 1 merged into `main`.
 
 ## Next 3 steps
 
-1. Plan Stage 2 (reliability + security) and wait for approval
-2. Start with data channel throughput (user saw 0.4 MB/s phone<->laptop)
-3. ws-client: reconnect/heartbeat, signal URL fallback to location.hostname
+1. chore(claude): add project settings
+2. Plan Stage 2 (reliability + security) and wait for approval
+3. ws-client: reconnect/heartbeat/re-announce, cold-start UX
 
 ## Half-done files
 
@@ -51,4 +56,3 @@ Working log for the staged refactor. Stage 1 merged into `main`.
 - register can take over another peer's id (needs a per-peer secret)
 - discovery is global, not per network
 - idb object URLs never revoked
-- dev setup breaks when LAN IP changes: NEXT_PUBLIC_SIGNAL_URL and allowedDevOrigins are hardcoded

@@ -92,13 +92,13 @@ cp apps/web/.env.example apps/web/.env.local
 
 The signaling server reads `PORT` from the environment (default `3001`); see `apps/signaling/.env.example`.
 
-Open `apps/web/.env.local` and set:
+Open `apps/web/.env.local` and set your machine's LAN IP so other devices may load the dev server:
 
 ```bash
-NEXT_PUBLIC_SIGNAL_URL=ws://<your-lan-ip>:3001
+ALLOWED_DEV_ORIGINS=<your-lan-ip>
 ```
 
-Replace `<your-lan-ip>` with your machine's local IP address. On Linux run `ip addr` to find it. On macOS run `ifconfig`.
+On Linux run `ip addr` to find it; on macOS run `ifconfig`. Leave `NEXT_PUBLIC_SIGNAL_URL` unset in development: the client connects to port 3001 on whichever host served the page, so it keeps working when your IP changes. Set it only in production (see Deployment).
 
 ### Run
 

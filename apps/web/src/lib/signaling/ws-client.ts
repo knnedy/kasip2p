@@ -21,8 +21,7 @@ class SignalingClient {
     )
       return;
 
-    const url = process.env.NEXT_PUBLIC_SIGNAL_URL ?? "ws://localhost:3001";
-    this.socket = new WebSocket(`${url}/ws`);
+    this.socket = new WebSocket(`${getSignalUrl()}/ws`);
 
     this.socket.onopen = () => {
       this.send({ type: "register", meta: getDeviceMeta(peerId) });
@@ -61,6 +60,13 @@ class SignalingClient {
     this.socket?.close();
     this.socket = null;
   }
+}
+
+// Unset in dev: use the host serving the page, so LAN IP changes need no config.
+function getSignalUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_SIGNAL_URL || `ws://${window.location.hostname}:3001`
+  );
 }
 
 function getDeviceMeta(peerId: string): PeerMeta {
