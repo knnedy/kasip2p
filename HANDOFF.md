@@ -20,12 +20,18 @@ Working log for the staged refactor on `refactor/architecture`.
 - build(repo): add vitest
 - docs(repo): fix README setup and add .env.example
 - ci: add typecheck, lint, test, build workflow (not yet run on GitHub; nothing pushed)
+- feat(shared): add zod signaling protocol (ClientMessage has no fromId; server stamps it)
 
 ## Next 3 steps
 
-1. feat(shared): add zod signaling protocol
-2. refactor(signaling): validate inbound messages with shared protocol
-3. refactor(web): validate signaling messages in ws-client
+1. refactor(signaling): validate inbound messages, stamp fromId, split index.ts
+2. refactor(web): validate signaling messages in ws-client; drop legacy SignalMessage
+3. refactor(web): model pairing as a state machine
+
+## Notes for upcoming steps
+
+- web must fall back when navigator.platform is empty (PeerMeta.name requires 1-64 chars)
+- legacy.ts in shared is removed in the web ws-client step
 
 ## Half-done files
 
