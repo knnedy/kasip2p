@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   activeTransfers,
+  failedTransfers,
   transfersReducer,
   type TransferEvent,
   type TransferInfo,
@@ -121,6 +122,16 @@ describe("transfersReducer", () => {
     expect(activeTransfers(paused)[0]).toMatchObject({ transferredBytes: 5, pausedBy: "remote" });
     const resumed = transfersReducer(paused, { type: "resumed", transferId: "t1" });
     expect(activeTransfers(resumed)[0]?.pausedBy).toBeNull();
+  });
+
+  it("lists failed transfers per peer until dismissed", () => {
+    const failed = run(started, { type: "failed", transferId: "t1", reason: "data channel closed" });
+    expect(failedTransfers(failed, "bob")).toEqual([
+      { transferId: "t1", fileName: info.fileName, direction: "sending", reason: "data channel closed" },
+    ]);
+    expect(failedTransfers(failed, "other")).toEqual([]);
+    const dismissed = transfersReducer(failed, { type: "dismissed", transferId: "t1" });
+    expect(failedTransfers(dismissed, "bob")).toEqual([]);
   });
 
   it("filters active transfers by peer", () => {

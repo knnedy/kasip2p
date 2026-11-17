@@ -35,7 +35,8 @@ export type TransferEvent =
   | { type: "completed"; transferId: string; at: number }
   | { type: "failed"; transferId: string; reason: string }
   | { type: "paused"; transferId: string; by: "local" | "remote" }
-  | { type: "resumed"; transferId: string };
+  | { type: "resumed"; transferId: string }
+  | { type: "dismissed"; transferId: string }; // drop a failed transfer from view
 
 // Only active transfers move; events for unknown or finished transfers are ignored.
 export function transfersReducer(
@@ -55,6 +56,13 @@ export function transfersReducer(
       updatedAt: event.at,
     };
     return { ...state, [event.info.transferId]: transfer };
+  }
+
+  if (event.type === "dismissed") {
+    if (state[event.transferId]?.status !== "failed") return state;
+    const rest = { ...state };
+    delete rest[event.transferId];
+    return rest;
   }
 
   const current = state[event.transferId];
@@ -119,4 +127,19 @@ export function activeTransfers(
     .filter((t) => t.status === "active")
     .filter((t) => peerId === undefined || t.info.peerId === peerId)
     .map(toProgress);
+}
+
+export interface FailedTransfer {
+  transferId: string;
+  fileName: string;
+  direction: TransferProgress["direction"];
+  reason: string;
+}
+
+export function failedTransfers(state: TransfersState, peerId: string): FailedTransfer[] {
+  return Object.values(state).flatMap((t) =>
+    t.status === "failed" && t.info.peerId === peerId
+      ? [{ transferId: t.info.transferId, fileName: t.info.fileName, direction: t.info.direction, reason: t.reason }]
+      : [],
+  );
 }

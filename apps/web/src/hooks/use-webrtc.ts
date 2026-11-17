@@ -9,7 +9,7 @@ import {
   sendFile,
 } from "@/lib/webrtc/chunk-utils";
 import { parsePeerMessage } from "@kasip2p/shared";
-import { activeTransfers, transfersReducer } from "@/lib/transfer/machine";
+import { activeTransfers, failedTransfers, transfersReducer } from "@/lib/transfer/machine";
 import { createProgressThrottle } from "@/lib/transfer/progress-throttle";
 import {
   createIncomingStore,
@@ -51,6 +51,8 @@ export function useWebRTC(
     () =>
       new Map<string, { controller: AbortController; gate: ReturnType<typeof createPauseGate> }>(),
   );
+  // files of failed sends, kept so they can be queued again
+  const [failedFiles] = useState(() => new Map<string, { peerId: string; file: File }>());
   const [receivers] = useState(() => new Map<string, ReturnType<typeof createReceiver>>());
 
   useEffect(() => () => progress.dispose(), [progress]);
@@ -225,6 +227,7 @@ export function useWebRTC(
     } catch (err) {
       progress.finish(transferId);
       const reason = err instanceof Error ? err.message : String(err);
+      failedFiles.set(transferId, { peerId: targetId, file });
       dispatch({ type: "failed", transferId, reason });
       return;
     } finally {
@@ -286,11 +289,27 @@ export function useWebRTC(
 
   const transfers = useMemo(() => activeTransfers(state), [state]);
 
+  const failedFor = (peerId: string) =>
+    failedTransfers(state, peerId).map((f) => ({ ...f, canRetry: failedFiles.has(f.transferId) }));
+
+  function dismiss(transferId: string) {
+    failedFiles.delete(transferId);
+    dispatch({ type: "dismissed", transferId });
+  }
+
+  // Sends the same file again as a new transfer, at the back of the queue.
+  function retry(transferId: string) {
+    const failed = failedFiles.get(transferId);
+    if (!failed) return;
+    dismiss(transferId);
+    queue.add(failed.peerId, [failed.file]);
+  }
+
   useEffect(() => {
     queue.bind(sendOne);
   });
 
   const send = (targetId: string, files: File[]) => queue.add(targetId, files);
 
-  return { transfers, queue, initiate, send, control, disconnect };
+  return { transfers, failedFor, retry, dismiss, queue, initiate, send, control, disconnect };
 }

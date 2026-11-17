@@ -6,6 +6,7 @@ import { getOrCreatePeerId } from "@/lib/peer-id";
 import { useWebRTC } from "@/hooks/use-webrtc";
 import { useConnectionInfo } from "@/hooks/use-connection-info";
 import { QueuedFiles } from "@/components/queued-files";
+import { FailedTransfers } from "@/components/failed-transfers";
 import type { ConnectionInfo } from "@/lib/webrtc/connection-info";
 import { usePeers } from "@/hooks/use-peers";
 import { getTransfers } from "@/lib/store/idb";
@@ -47,7 +48,7 @@ export default function TransferPage() {
   const targetPeer = peers.find((p) => p.meta.peerId === targetId);
   const connection = useConnectionInfo(targetId);
 
-  const { transfers, queue, initiate, send, control } = useWebRTC(localPeerId, () => {
+  const { transfers, failedFor, retry, dismiss, queue, initiate, send, control } = useWebRTC(localPeerId, () => {
     queryClient.invalidateQueries({ queryKey: ["transfers"] });
   });
 
@@ -168,6 +169,8 @@ export default function TransferPage() {
             onChange={(e) => handleFiles(e.target.files)}
           />
         </div>
+
+        <FailedTransfers items={failedFor(targetId)} onRetry={retry} onDismiss={dismiss} />
 
         <QueuedFiles queue={queue} peerId={targetId} />
 
