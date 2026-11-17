@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { peerIdSchema, peerMetaSchema } from "../domain.ts";
+import { deviceNameSchema, peerIdSchema, peerMetaSchema } from "../domain.ts";
 
 export const pinSchema = z.string().regex(/^\d{6}$/);
 
@@ -26,6 +26,8 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
     secret: peerSecretSchema,
   }),
   z.object({ type: z.literal("ping") }),
+  // Only the name is mutable after register; id, os and device type are fixed.
+  z.object({ type: z.literal("update-meta"), name: deviceNameSchema }),
   z.object({ type: z.literal("pair-request"), targetId: peerIdSchema }),
   z.object({
     type: z.literal("pair-pin"),

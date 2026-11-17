@@ -24,6 +24,9 @@ export const peerIdSchema = z
   .max(64)
   .regex(/^[A-Za-z0-9_-]+$/);
 
+// User-chosen device label; trimmed so "  " cannot pass as a name.
+export const deviceNameSchema = z.string().trim().min(1).max(64);
+
 export const peerMetaSchema = z.object({
   peerId: peerIdSchema,
   name: z.string().min(1).max(64),

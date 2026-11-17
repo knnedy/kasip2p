@@ -1,50 +1,47 @@
 # HANDOFF
 
-Working log for the staged refactor. Stage 1 merged into `main` (93006f0).
-Current: Stage 2 (reliability + security) on `feat/reliability-security`.
+Working log for the staged refactor. Stages 1–2 merged into `main` (988b67c).
+Current: Stage 3 (features) on `feat/stage3-features`.
 
-## Stage 2 decisions
+## Stage 3 decisions
 
-- discovery scoped by public IP (x-forwarded-for)
-- resume within the same session only (sender still holds the File)
-- no default STUN; NEXT_PUBLIC_ICE_SERVERS opts in to STUN/TURN
-- received files stream to OPFS, in-memory fallback
-- PIN becomes 6 digits; peer-id ownership via a per-device secret
-- two-device checks after steps 10, 12 and 15
+- features: device naming, multi-file queue, pause/cancel/retry, folders
+- queue: sequential per peer; queued items removable/reorderable
+- controls: both sides pause/cancel (sender also resumes); retry on sender, same session
+- folders: relativePath + groupId on file-meta; receiver downloads as streamed zip (fflate, OPFS)
+- naming: localStorage, live via update-meta; history stores peer name at transfer time
+- TDD seams: shared parsers, SignalingHub, web pure modules (no hook/component tests)
+- two-device checks after steps 3, 7 and 10
 
-## Stage 2 plan
+## Stage 3 plan
 
-- [x] chore pre-plan: fix(web) dev origins from env; chore(claude) project settings
-- [x] 1. feat(shared): add register secret and ping/pong
-- [x] 2. fix(signaling): limit message size and check origin
-- [x] 3. feat(signaling): harden PIN pairing
-- [x] 4. feat(signaling): heartbeat and stale-peer cleanup
-- [x] 5. fix(signaling): bind peer id to its owner
-- [x] 6. feat(signaling): scope discovery by network
-- [x] 7. feat(web): resilient ws-client
-- [x] 8. feat(web): generate 6-digit PIN with crypto
-- [x] 9. feat(web): configurable ICE servers and ICE restart
-- [x] 10. fix(web): open a single data channel per pair (two-device check)
-- [x] 11. perf(web): throttle progress updates
-- [x] 12. perf(web): event-driven backpressure and adaptive chunk size (two-device check)
-- [x] 13. fix(web): complete zero-byte transfers
-- [x] 14. feat(web): stream received files to disk
-- [x] 15. feat(web): resume interrupted transfers (two-device check)
-  - [x] 15a. fix(signaling): keep pairings across brief reconnects
-  - [x] 15b. feat(shared): add file-accept peer message
-  - [x] 15c. feat(web): resume partially received files
-  - [x] 15d. feat(web): re-open dropped data channels and retry sends
-- [x] 16. fix(web): revoke object URLs
+- [x] 1. feat(shared): add update-meta signaling message
+- [ ] 2. feat(signaling): apply name updates and rebroadcast peers
+- [ ] 3. feat(web): rename this device (two-device check)
+- [ ] 4. feat(web): send files through a per-peer queue
+- [ ] 5. feat(shared): add transfer control peer messages
+- [ ] 6. feat(web): pause, resume and cancel transfers
+- [ ] 7. feat(web): retry failed sends (two-device check)
+- [ ] 8. feat(shared): add folder paths to file-meta
+- [ ] 9. feat(web): send folders
+- [ ] 10. feat(web): receive folders and download as zip (two-device check)
 
 ## Next 3 steps
 
-1. Merge feat/reliability-security into main (user approval)
-2. Two-device checks: large file, resume after Wi-Fi drop, signaling restart
-3. Stage 3: /grill-with-docs to pick features
+1. feat(signaling): apply name updates and rebroadcast peers
+2. feat(web): rename this device
+3. feat(web): send files through a per-peer queue
 
 ## Half-done files
 
-- Stage 2 complete; two-device checks after merge (resume, large file); verify TRUST_PROXY/XFF + ALLOWED_ORIGINS on Render; accept waiters reject for all peers on any close (revisit for multi-peer)
+- none; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF; step 4 scopes accept waiters per peer
+
+## Stage 2 (done, merged)
+
+Reliability + security: register secret and peer-id ownership, origin/size limits, hardened
+6-digit PIN, heartbeat, network-scoped discovery, resilient ws-client, ICE config/restart,
+backpressure + adaptive chunks, OPFS streaming, resume and channel re-open, object URL cleanup.
+Two-device checks passed. See git log 93006f0..988b67c.
 
 ## Stage 1 (done, merged)
 

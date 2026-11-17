@@ -85,6 +85,26 @@ describe("parseClientMessage", () => {
   });
 });
 
+describe("update-meta", () => {
+  it("accepts a new name, trimmed", () => {
+    const parsed = parseClientMessage(JSON.stringify({ type: "update-meta", name: "  Kitchen laptop " }));
+    expect(parsed).toEqual({ ok: true, message: { type: "update-meta", name: "Kitchen laptop" } });
+  });
+
+  it("rejects blank or over-64-character names", () => {
+    for (const name of ["   ", "x".repeat(65)]) {
+      expect(parseClientMessage(JSON.stringify({ type: "update-meta", name })).ok).toBe(false);
+    }
+  });
+
+  it("only carries the name, so id, os and device type cannot change", () => {
+    const parsed = parseClientMessage(
+      JSON.stringify({ type: "update-meta", name: "A", peerId: "evil", os: "ios" }),
+    );
+    expect(parsed).toEqual({ ok: true, message: { type: "update-meta", name: "A" } });
+  });
+});
+
 describe("parseServerMessage", () => {
   it("accepts a typed error", () => {
     const msg = { type: "error", code: "incorrect-pin", message: "incorrect PIN" };
