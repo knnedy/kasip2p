@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getOrCreatePeerId } from "@/lib/peer-id";
 import { useWebRTC } from "@/hooks/use-webrtc";
+import { useConnectionInfo } from "@/hooks/use-connection-info";
+import type { ConnectionInfo } from "@/lib/webrtc/connection-info";
 import { usePeers } from "@/hooks/use-peers";
 import { getTransfers } from "@/lib/store/idb";
 import { pairedPeers, signalingClient } from "@/lib/signaling/ws-client";
@@ -19,6 +21,19 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
 }
 
+const ROUTE_LABEL: Record<ConnectionInfo["route"], string> = {
+  local: "Direct · local network",
+  internet: "Direct · over the internet",
+  relay: "Relayed (slower)",
+  unknown: "Connecting…",
+};
+
+function connectionLabel(info: ConnectionInfo | null) {
+  if (!info) return ROUTE_LABEL.unknown;
+  const rtt = info.rttMs !== null && info.route !== "unknown" ? ` · ${info.rttMs} ms` : "";
+  return ROUTE_LABEL[info.route] + rtt;
+}
+
 export default function TransferPage() {
   const params = useParams();
   const router = useRouter();
@@ -29,6 +44,7 @@ export default function TransferPage() {
   const queryClient = useQueryClient();
   const { peers } = usePeers(localPeerId);
   const targetPeer = peers.find((p) => p.meta.peerId === targetId);
+  const connection = useConnectionInfo(targetId);
 
   const { transfers, initiate, transfer } = useWebRTC(localPeerId, () => {
     queryClient.invalidateQueries({ queryKey: ["transfers"] });
@@ -105,7 +121,9 @@ export default function TransferPage() {
 
         <div className="ml-auto flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#00d9ff]" />
-          <span className="text-xs text-muted-foreground">Connected</span>
+          <span className="text-xs text-muted-foreground">
+            {connectionLabel(connection)}
+          </span>
         </div>
       </header>
 

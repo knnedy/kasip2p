@@ -1,6 +1,7 @@
 import type { ServerMessage } from "@kasip2p/shared";
 import { signalingClient } from "@/lib/signaling/ws-client";
 import { rtcConfig } from "./ice-config";
+import { describeConnection, type ConnectionInfo } from "./connection-info";
 
 const MAX_ICE_RESTARTS = 3;
 const RECONNECT_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000];
@@ -99,6 +100,11 @@ class PeerManager {
     return () => {
       this.channelListeners.delete(listener);
     };
+  }
+
+  async getConnectionInfo(remoteId: string): Promise<ConnectionInfo | null> {
+    const pc = this.connections.get(remoteId);
+    return pc ? describeConnection(await pc.getStats()) : null;
   }
 
   // Remote's advertised SCTP max message size; undefined before the transport is up.
