@@ -73,10 +73,18 @@ export async function openWorkerDownload(meta: FileMeta): Promise<DownloadSink> 
     ]);
   });
 
-  const iframe = document.createElement("iframe");
-  iframe.hidden = true;
-  iframe.src = url;
-  document.body.appendChild(iframe);
+  // each attempt gets its own hidden iframe; a retry runs inside the user's click
+  const frames: HTMLIFrameElement[] = [];
+  let attempt = 0;
+  const navigate = () => {
+    const iframe = document.createElement("iframe");
+    iframe.hidden = true;
+    iframe.src = attempt === 0 ? url : `${url}?attempt=${attempt}`;
+    attempt += 1;
+    document.body.appendChild(iframe);
+    frames.push(iframe);
+  };
+  navigate();
   trackOpen(worker, 1);
 
   let done = false;
@@ -85,12 +93,16 @@ export async function openWorkerDownload(meta: FileMeta): Promise<DownloadSink> 
     done = true;
     port1.postMessage(msg);
     trackOpen(worker, -1);
-    // the download outlives the iframe once started; keep it a moment to be safe
-    setTimeout(() => iframe.remove(), 30_000);
+    // the download outlives its iframe once started; keep them a moment to be safe
+    setTimeout(() => frames.forEach((f) => f.remove()), 30_000);
   };
 
+  let markStarted!: () => void;
   const sink: DownloadSink = {
     onCancel: null,
+    onBlocked: null,
+    started: new Promise<void>((resolve) => (markStarted = resolve)),
+    retry: navigate,
     write(chunk) {
       port1.postMessage({ type: "chunk", chunk }, [chunk]);
     },
@@ -98,7 +110,9 @@ export async function openWorkerDownload(meta: FileMeta): Promise<DownloadSink> 
     abort: () => end({ type: "abort" }),
   };
   port1.onmessage = ({ data }) => {
-    if (data?.type === "cancelled") sink.onCancel?.();
+    if (data?.type === "started") markStarted();
+    else if (data?.type === "blocked") sink.onBlocked?.();
+    else if (data?.type === "cancelled") sink.onCancel?.();
   };
   return sink;
 }

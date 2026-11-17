@@ -37,7 +37,7 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 - [x] 9. fix(web): stop the sender when a download is cancelled
 - [x] 10. test(web): add two-browser transfer benchmark
 - [x] 11. chore(deps): update to the latest Render/Vercel-compatible versions
-- [ ] 12. fix(web): start streamed downloads in production builds
+- [x] 12. fix(web): start streamed downloads in production builds
 - [ ] 13. fix(web): drop file copies left in history by older versions
 - [ ] 14. perf(web): read ahead on the sender and drop the receive copy
 - [ ] 15. feat(web): show connection type and live speed (two-device check)
@@ -50,13 +50,13 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 
 ## Next 3 steps
 
-1. fix(web): start streamed downloads in production builds
-2. fix(web): drop file copies left in history by older versions
-3. perf(web): read ahead on the sender and drop the receive copy
+1. fix(web): drop file copies left in history by older versions
+2. perf(web): read ahead on the sender and drop the receive copy
+3. feat(web): show connection type and live speed
 
 ## Half-done files
 
-- step 12 bug did not reproduce in headless Chrome (retry headed / user profile); hold TS 7 until typescript-eslint supports it; web ESLint 9 until eslint-config-next plugins support 10; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
+- .node-version deleted locally (not by Claude), left unstaged pending user; blocked-download retry via iframe-in-click is untested in a real blocking profile (medium confidence); hold TS 7 / web ESLint 10; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
 
 ## Stage 2 (done, merged)
 

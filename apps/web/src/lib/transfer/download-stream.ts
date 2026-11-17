@@ -7,7 +7,19 @@ export interface DownloadSink {
   close(): void;
   abort(): void;
   onCancel: (() => void) | null; // user cancelled it in the browser
+  onBlocked: (() => void) | null; // browser dropped it before reading a byte
+  readonly started: Promise<void>; // the browser has read the first byte
+  retry(): void; // start it again; must run inside a user click
 }
+
+export interface BlockedDownloadHooks {
+  startTimeoutMs?: number;
+  // Chrome may block automatic downloads; save() restarts it from a click
+  onBlocked?(meta: FileMeta, save: () => void): void;
+  onUnblocked?(transferId: string): void; // started or abandoned after being blocked
+}
+
+export const START_TIMEOUT_MS = 2_000;
 
 export const RESUME_WINDOW_MS = 3 * 60_000;
 
@@ -39,10 +51,51 @@ interface Held {
 export function createStreamDownloads(
   open: (meta: FileMeta) => Promise<DownloadSink>,
   resumeWindowMs = RESUME_WINDOW_MS,
+  hooks: BlockedDownloadHooks = {},
 ): CreateStore {
   const held = new Map<string, Held>();
+  const startTimeoutMs = hooks.startTimeoutMs ?? START_TIMEOUT_MS;
 
-  function storeFor(meta: FileMeta, sink: DownloadSink, startAt: number): IncomingFileStore {
+  // Fresh downloads only (a resumed one already started). The clock starts with
+  // the first data, so a slow sender is not mistaken for a blocked download.
+  function watchStart(meta: FileMeta, sink: DownloadSink) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let started = false;
+    let blocked = false;
+    const block = () => {
+      if (started || blocked) return;
+      clearTimeout(timer);
+      blocked = true;
+      hooks.onBlocked?.(meta, () => sink.retry());
+    };
+    const clear = () => {
+      clearTimeout(timer);
+      if (blocked) hooks.onUnblocked?.(meta.transferId);
+      blocked = false;
+    };
+    sink.onBlocked = block;
+    void sink.started.then(() => {
+      started = true;
+      clear();
+    });
+    return {
+      dataArrived() {
+        if (timer === undefined && !started && !blocked) {
+          timer = setTimeout(block, startTimeoutMs);
+        }
+      },
+      clear,
+    };
+  }
+  type Watch = ReturnType<typeof watchStart>;
+  const unwatched: Watch = { dataArrived() {}, clear() {} };
+
+  function storeFor(
+    meta: FileMeta,
+    sink: DownloadSink,
+    startAt: number,
+    watch: Watch = unwatched,
+  ): IncomingFileStore {
     let written = startAt;
     let cancelled = false;
     sink.onCancel = () => {
@@ -54,8 +107,10 @@ export function createStreamDownloads(
         if (cancelled) throw new Error("download cancelled in the browser");
         sink.write(chunk);
         written += chunk.byteLength;
+        watch.dataArrived();
       },
       async finish() {
+        watch.dataArrived(); // an empty file still has to be saved
         sink.close();
         return null;
       },
@@ -67,6 +122,7 @@ export function createStreamDownloads(
         held.set(meta.transferId, { meta, sink, written, timer });
       },
       async abort() {
+        watch.clear();
         sink.abort();
       },
     };
@@ -82,6 +138,7 @@ export function createStreamDownloads(
       }
       prior.sink.abort();
     }
-    return storeFor(meta, await open(meta), 0);
+    const sink = await open(meta);
+    return storeFor(meta, sink, 0, watchStart(meta, sink));
   };
 }

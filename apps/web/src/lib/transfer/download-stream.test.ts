@@ -16,7 +16,14 @@ class FakeSink implements DownloadSink {
   chunks: number[] = [];
   closed = false;
   aborted = false;
+  retried = 0;
   onCancel: (() => void) | null = null;
+  onBlocked: (() => void) | null = null;
+  markStarted!: () => void;
+  started = new Promise<void>((r) => (this.markStarted = r));
+  retry() {
+    this.retried += 1;
+  }
   write(chunk: ArrayBuffer) {
     this.chunks.push(chunk.byteLength);
   }
@@ -28,14 +35,19 @@ class FakeSink implements DownloadSink {
   }
 }
 
-function setup(windowMs = 1_000) {
+function setup(windowMs = 1_000, onBlocked = vi.fn()) {
   const sinks: FakeSink[] = [];
   const open = vi.fn(async () => {
     const sink = new FakeSink();
     sinks.push(sink);
     return sink;
   });
-  return { sinks, open, create: createStreamDownloads(open, windowMs) };
+  return {
+    sinks,
+    open,
+    onBlocked,
+    create: createStreamDownloads(open, windowMs, { startTimeoutMs: 500, onBlocked }),
+  };
 }
 
 describe("streamed downloads", () => {
@@ -100,6 +112,68 @@ describe("streamed downloads", () => {
     const store = await create(meta());
     await store.abort();
     expect(sinks[0]?.aborted).toBe(true);
+  });
+});
+
+describe("blocked downloads", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("reports a download the browser has not started 2s after data arrived, with a click-to-save", async () => {
+    vi.useFakeTimers();
+    const { sinks, onBlocked, create } = setup();
+    const store = await create(meta());
+    await vi.advanceTimersByTimeAsync(5_000); // no data yet: a slow sender is not a block
+    expect(onBlocked).not.toHaveBeenCalled();
+    await store.write(new ArrayBuffer(4));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(onBlocked).toHaveBeenCalledOnce();
+    const [blockedMeta, save] = onBlocked.mock.calls[0]!;
+    expect(blockedMeta).toMatchObject({ transferId: "t1" });
+    save();
+    expect(sinks[0]?.retried).toBe(1);
+  });
+
+  it("reports at once when the browser drops the download before reading a byte", async () => {
+    const { sinks, onBlocked, create } = setup();
+    await create(meta());
+    sinks[0]!.onBlocked?.();
+    expect(onBlocked).toHaveBeenCalledOnce();
+  });
+
+  it("stays quiet when the download starts in time", async () => {
+    vi.useFakeTimers();
+    const { sinks, onBlocked, create } = setup();
+    const store = await create(meta());
+    await store.write(new ArrayBuffer(4));
+    sinks[0]!.markStarted();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(onBlocked).not.toHaveBeenCalled();
+  });
+
+  it("clears the prompt when a blocked download starts or the transfer is abandoned", async () => {
+    vi.useFakeTimers();
+    const onUnblocked = vi.fn();
+    const sinks: FakeSink[] = [];
+    const create = createStreamDownloads(
+      async () => {
+        const sink = new FakeSink();
+        sinks.push(sink);
+        return sink;
+      },
+      1_000,
+      { startTimeoutMs: 500, onBlocked: vi.fn(), onUnblocked },
+    );
+    const started = await create(meta());
+    await started.write(new ArrayBuffer(1));
+    await vi.advanceTimersByTimeAsync(500);
+    sinks[0]!.markStarted();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(onUnblocked).toHaveBeenLastCalledWith("t1");
+
+    const abandoned = await create(meta({ transferId: "t2" }));
+    sinks[1]!.onBlocked?.();
+    await abandoned.abort();
+    expect(onUnblocked).toHaveBeenLastCalledWith("t2");
   });
 });
 

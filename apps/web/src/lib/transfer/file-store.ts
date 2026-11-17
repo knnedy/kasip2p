@@ -1,6 +1,8 @@
 import type { FileMeta } from "@kasip2p/shared";
 import { clearPartials, deletePartial, getPartial, savePartial } from "@/lib/store/idb";
 import { createStreamDownloads } from "./download-stream";
+import { createPendingSaves } from "./pending-saves";
+export type { PendingSave } from "./pending-saves";
 import { openWorkerDownload, streamDownloadsAvailable } from "./download-worker";
 
 // Where an incoming file's bytes go while it is being received.
@@ -99,7 +101,13 @@ function opfsSupported(): boolean {
   );
 }
 
-const streamed = createStreamDownloads(openWorkerDownload);
+// Downloads the browser held back (e.g. automatic downloads blocked for this site).
+export const pendingSaves = createPendingSaves();
+
+const streamed = createStreamDownloads(openWorkerDownload, undefined, {
+  onBlocked: (meta, save) => pendingSaves.add(meta.transferId, meta.name, save),
+  onUnblocked: (transferId) => pendingSaves.remove(transferId),
+});
 
 // Best first: stream into a browser download; else stage on disk (OPFS), else memory.
 export const createIncomingStore: CreateStore = async (meta) => {

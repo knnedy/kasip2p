@@ -107,6 +107,7 @@ async function peerIdOf(page: Page) {
 async function main() {
   const root = new URL("../../..", import.meta.url).pathname;
   const dir = mkdtempSync(join(tmpdir(), "kasip2p-bench-"));
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
   try {
     start("node", ["dist/index.js"], join(root, "apps/signaling"), { PORT: "3001" });
     start("pnpm", ["exec", "next", "start", "-p", String(WEB_PORT)], join(root, "apps/web"));
@@ -114,7 +115,7 @@ async function main() {
     await waitForHttp(APP);
 
     const file = await makeFile(dir, SIZE_MB);
-    const browser = await chromium.launch({
+    browser = await chromium.launch({
       channel: "chrome",
       headless: !flag("--headed"),
       // same-machine peers: skip mDNS host-candidate obfuscation
@@ -174,9 +175,9 @@ async function main() {
     console.log(`streamed: ${tFirst - t0 < (tDone - t0) / 2 ? "yes" : "no (appeared at the end)"}`);
     console.log(`file intact: ${intact ? "yes" : `NO (${bytes} bytes)`}`);
     console.log(`app reaches ${((app / raw) * 100).toFixed(0)}% of the raw channel`);
-    await browser.close();
     if (!intact) process.exitCode = 1;
   } finally {
+    await browser?.close(); // before the servers, so pages don't log reconnect errors
     procs.forEach((p) => p.kill());
     rmSync(dir, { recursive: true, force: true });
   }

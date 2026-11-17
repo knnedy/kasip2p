@@ -9,6 +9,7 @@ import { clearStaleIncoming } from "@/lib/transfer/file-store";
 import { useIncomingPair } from "@/hooks/use-incoming-pair";
 import { PairRequestModal } from "@/components/pair-request-modal";
 import { ConnectionStatus } from "@/components/connection-status";
+import { PendingSaves } from "@/components/pending-saves";
 import type { PeerMeta } from "@kasip2p/shared";
 
 export function PairingProvider({ children }: { children: React.ReactNode }) {
@@ -38,6 +39,7 @@ export function PairingProvider({ children }: { children: React.ReactNode }) {
   return (
     <>
       <ConnectionStatus />
+      <PendingSaves />
       {children}
       {incoming && <PairRequestModal incoming={incoming} onDismiss={dismiss} />}
     </>
