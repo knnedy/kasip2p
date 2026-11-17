@@ -11,6 +11,14 @@ export class PeerRegistry<C> {
     return this.peers.get(peerId)?.conn;
   }
 
+  // Applies to the current entry only; returns false for unknown ids.
+  rename(peerId: string, name: string): boolean {
+    const entry = this.peers.get(peerId);
+    if (!entry) return false;
+    entry.meta = { ...entry.meta, name };
+    return true;
+  }
+
   // Only removes when conn still owns the id, so a quick refresh keeps the new socket.
   remove(peerId: string, conn: C): boolean {
     if (this.peers.get(peerId)?.conn !== conn) return false;

@@ -325,3 +325,71 @@ describe("SignalingHub", () => {
     expect(b2.last()).toEqual({ type: "pair-request", fromId: "alice" });
   });
 });
+
+describe("update-meta", () => {
+  let now: number;
+  let hub: SignalingHub;
+  let a: FakeConn;
+  let b: FakeConn;
+
+  beforeEach(() => {
+    now = 0;
+    hub = new SignalingHub({ now: () => now });
+    a = new FakeConn();
+    b = new FakeConn();
+    register(hub, a, "alice");
+    register(hub, b, "bob");
+  });
+
+  const namesSeenBy = (conn: FakeConn) => {
+    const lists = conn.inbox.flatMap((m) => (m.type === "peer-list" ? [m.peers] : []));
+    return lists.at(-1)?.map((p) => [p.peerId, p.name]);
+  };
+
+  it("broadcasts the new name to peers on the network", () => {
+    send(hub, a, { type: "update-meta", name: "Kitchen laptop" });
+    expect(namesSeenBy(b)).toEqual([
+      ["alice", "Kitchen laptop"],
+      ["bob", "bob"],
+    ]);
+  });
+
+  it("does not leak the name to other networks", () => {
+    const far = new FakeConn("203.0.113.7");
+    register(hub, far, "carol");
+    const before = far.inbox.length;
+    send(hub, a, { type: "update-meta", name: "Kitchen laptop" });
+    const after = far.inbox.slice(before).flatMap((m) => (m.type === "peer-list" ? m.peers : []));
+    expect(after.map((p) => p.name)).not.toContain("Kitchen laptop");
+  });
+
+  it("requires registration", () => {
+    const stranger = new FakeConn();
+    send(hub, stranger, { type: "update-meta", name: "X" });
+    expect(stranger.last()).toMatchObject({ type: "error", code: "not-registered" });
+  });
+
+  it("ignores renames faster than once per second", () => {
+    send(hub, a, { type: "update-meta", name: "One" });
+    now = 500;
+    send(hub, a, { type: "update-meta", name: "Two" });
+    expect(namesSeenBy(b)?.[0]).toEqual(["alice", "One"]);
+    now = 1_000;
+    send(hub, a, { type: "update-meta", name: "Three" });
+    expect(namesSeenBy(b)?.[0]).toEqual(["alice", "Three"]);
+  });
+
+  it("keeps the new name when the device re-registers with it", () => {
+    send(hub, a, { type: "update-meta", name: "Kitchen laptop" });
+    const a2 = new FakeConn();
+    hub.handleRaw(
+      a2,
+      JSON.stringify({
+        type: "register",
+        meta: { peerId: "alice", name: "Kitchen laptop", os: "linux", deviceType: "desktop" },
+        secret: Buffer.from("alice").toString("hex").padEnd(32, "0"),
+      }),
+    );
+    expect(namesSeenBy(b)?.[0]).toEqual(["alice", "Kitchen laptop"]);
+  });
+});

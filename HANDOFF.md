@@ -16,7 +16,7 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 ## Stage 3 plan
 
 - [x] 1. feat(shared): add update-meta signaling message
-- [ ] 2. feat(signaling): apply name updates and rebroadcast peers
+- [x] 2. feat(signaling): apply name updates and rebroadcast peers
 - [ ] 3. feat(web): rename this device (two-device check)
 - [ ] 4. feat(web): send files through a per-peer queue
 - [ ] 5. feat(shared): add transfer control peer messages
@@ -28,9 +28,9 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 
 ## Next 3 steps
 
-1. feat(signaling): apply name updates and rebroadcast peers
-2. feat(web): rename this device
-3. feat(web): send files through a per-peer queue
+1. feat(web): rename this device
+2. feat(web): send files through a per-peer queue
+3. feat(shared): add transfer control peer messages
 
 ## Half-done files
 

@@ -15,17 +15,21 @@ export interface Connection {
   readonly network: string; // see network.ts; peers only see their own network
 }
 
+const RENAME_INTERVAL_MS = 1_000;
+
 // Transport-agnostic signaling logic; index.ts wires it to ws.
 export class SignalingHub {
   private peers = new PeerRegistry<Connection>();
   private pairing: PairingRegistry;
   private owners: OwnershipRegistry;
   private peerIdOf = new Map<Connection, string>();
+  private lastRenameAt = new Map<string, number>();
+  private now: () => number;
 
   constructor(
     opts: { now?: () => number; ownerGraceMs?: number; pairing?: PairingOptions } = {},
   ) {
-    const now = opts.now ?? Date.now;
+    const now = (this.now = opts.now ?? Date.now);
     this.pairing = new PairingRegistry({ now, ...opts.pairing });
     this.owners = new OwnershipRegistry(now, opts.ownerGraceMs ?? 10 * 60_000);
   }
@@ -52,6 +56,7 @@ export class SignalingHub {
     // pairings outlive the socket for the ownership grace, so a blip needs no re-pairing
     this.owners.release(peerId);
     this.pairing.removePending(peerId);
+    this.lastRenameAt.delete(peerId);
     this.broadcastPeerList();
   }
 
@@ -87,6 +92,14 @@ export class SignalingHub {
     }
 
     switch (msg.type) {
+      case "update-meta": {
+        // each rename broadcasts to the whole network, so cap it; clients rename on submit
+        const last = this.lastRenameAt.get(fromId);
+        if (last !== undefined && this.now() - last < RENAME_INTERVAL_MS) break;
+        this.lastRenameAt.set(fromId, this.now());
+        if (this.peers.rename(fromId, msg.name)) this.broadcastPeerList();
+        break;
+      }
       case "pair-request":
         this.pairing.request(fromId, msg.targetId);
         this.forward(conn, msg.targetId, { type: "pair-request", fromId });
