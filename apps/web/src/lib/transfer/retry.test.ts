@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { sendWithRetry } from "./retry";
+import { sendWithRetry, TransferCancelled } from "./retry";
 
 describe("sendWithRetry", () => {
   it("retries on a reopened channel until the send succeeds", async () => {
@@ -29,5 +29,13 @@ describe("sendWithRetry", () => {
     });
     await expect(sendWithRetry(async () => "dc", send, 2)).rejects.toThrow("still closed");
     expect(send).toHaveBeenCalledTimes(3);
+  });
+
+  it("never retries a cancellation", async () => {
+    const send = vi.fn(async () => {
+      throw new TransferCancelled("cancelled by receiver");
+    });
+    await expect(sendWithRetry(async () => "dc", send, 3)).rejects.toThrow("cancelled by receiver");
+    expect(send).toHaveBeenCalledOnce();
   });
 });

@@ -34,13 +34,19 @@ export function chooseChunkSize(maxMessageSize: number | undefined): number {
   return Math.min(MAX_CHUNK_SIZE, maxMessageSize);
 }
 
-// Resolves once the send buffer drains below the low-water mark; rejects if the channel closes.
-function drained(sink: ChunkSink): Promise<void> {
+// Resolves once the send buffer drains below the low-water mark; rejects on close or abort.
+function drained(sink: ChunkSink, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const cleanup = () => {
       sink.removeEventListener("bufferedamountlow", onLow);
       sink.removeEventListener("close", onClose);
+      signal?.removeEventListener("abort", onAbort);
     };
+    const onAbort = () => {
+      cleanup();
+      reject(signal?.reason);
+    };
+    signal?.addEventListener("abort", onAbort);
     const onLow = () => {
       cleanup();
       resolve();
@@ -61,6 +67,7 @@ export async function sendFile(
   onProgress: (transferredBytes: number) => void,
   chunkSize = DEFAULT_CHUNK_SIZE,
   waitForAccept: (transferId: string) => Promise<number> = async () => 0,
+  signal?: AbortSignal, // aborted when either side cancels; rejects with its reason
 ) {
   sink.bufferedAmountLowThreshold = LOW_WATER_MARK;
   const accepted = waitForAccept(transferId); // registered before file-meta goes out
@@ -78,9 +85,10 @@ export async function sendFile(
   if (offset > file.size) throw new Error(`receiver offset ${offset} beyond file size`);
   if (offset > 0) onProgress(offset);
   while (offset < file.size) {
+    signal?.throwIfAborted();
     if (sink.readyState !== "open") throw new Error("data channel closed");
     if (sink.bufferedAmount > HIGH_WATER_MARK) {
-      await drained(sink);
+      await drained(sink, signal);
       continue;
     }
     const buffer = await file.slice(offset, offset + chunkSize).arrayBuffer();
@@ -142,6 +150,7 @@ interface Incoming {
   writes: Promise<void>; // chained so chunks hit the store strictly in order
   pending: ArrayBuffer[]; // not yet handed to the store
   pendingBytes: number;
+  failed: boolean;
 }
 
 // Fewer, larger store writes: per-write overhead dominates at 64KB chunks.
@@ -167,8 +176,25 @@ export function createReceiver(
 ) {
   let current: Incoming | null = null;
 
+  // Any failure ends the file at once: report it, discard it, tell the sender to stop.
+  function fail(incoming: Incoming, err: unknown) {
+    if (incoming.failed) return;
+    incoming.failed = true;
+    if (current === incoming) current = null;
+    incoming.pending = [];
+    incoming.pendingBytes = 0;
+    callbacks.onError?.(incoming.meta, err);
+    const reason = (err instanceof Error ? err.message : String(err)).slice(0, 200);
+    reply(JSON.stringify({ type: "transfer-cancel", transferId: incoming.meta.transferId, reason }));
+    void incoming.store.then((store) => store.abort()).catch(() => {});
+  }
+
   function enqueue(incoming: Incoming, op: (store: IncomingFileStore) => Promise<void>) {
-    incoming.writes = incoming.writes.then(async () => op(await incoming.store));
+    incoming.writes = incoming.writes
+      .then(async () => {
+        if (!incoming.failed) await op(await incoming.store);
+      })
+      .catch((err) => fail(incoming, err));
   }
 
   function flush(incoming: Incoming) {
@@ -186,13 +212,11 @@ export function createReceiver(
     flush(incoming);
     incoming.writes
       .then(async () => {
+        if (incoming.failed) return;
         const file = await (await incoming.store).finish();
         await callbacks.onComplete(incoming.meta, file);
       })
-      .catch(async (err) => {
-        callbacks.onError?.(incoming.meta, err);
-        await (await incoming.store).abort().catch(() => {});
-      });
+      .catch((err) => fail(incoming, err));
   }
 
   function start(meta: FileMeta) {
@@ -204,6 +228,7 @@ export function createReceiver(
       writes: Promise.resolve(),
       pending: [],
       pendingBytes: 0,
+      failed: false,
     };
     current = incoming;
     // tell the sender where to start; a resumed file skips what we already hold
@@ -213,10 +238,7 @@ export function createReceiver(
       callbacks.onStart(meta, store.offset);
       completeIfDone(incoming);
     });
-    incoming.writes.catch((err) => {
-      if (current === incoming) current = null;
-      callbacks.onError?.(meta, err);
-    });
+    incoming.writes = incoming.writes.catch((err) => fail(incoming, err));
   }
 
   // Channel went away: keep the partial file so the same transfer can resume.

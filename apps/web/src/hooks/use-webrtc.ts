@@ -19,7 +19,7 @@ import {
 import { downloadBlob } from "@/lib/download";
 import { saveTransfer } from "@/lib/store/idb";
 import { peerNames } from "@/lib/signaling/ws-client";
-import { sendWithRetry } from "@/lib/transfer/retry";
+import { sendWithRetry, TransferCancelled } from "@/lib/transfer/retry";
 import { generateId } from "@/lib/utils";
 
 const REOPEN_TIMEOUT_MS = 30_000;
@@ -44,6 +44,8 @@ export function useWebRTC(
   );
 
   const [accepts] = useState(() => createAcceptRegistry());
+  // one per outgoing transfer, aborted when the receiver cancels it
+  const [outgoing] = useState(() => new Map<string, AbortController>());
 
   useEffect(() => () => progress.dispose(), [progress]);
 
@@ -126,6 +128,13 @@ export function useWebRTC(
           accepts.resolve(msg);
           return;
         }
+        if (msg?.type === "transfer-cancel" && outgoing.has(msg.transferId)) {
+          const reason = msg.reason ? `: ${msg.reason}` : "";
+          outgoing
+            .get(msg.transferId)
+            ?.abort(new TransferCancelled(`cancelled by receiver${reason}`));
+          return;
+        }
       }
       let receiver = receivers.get(remoteId);
       if (!receiver) {
@@ -145,7 +154,7 @@ export function useWebRTC(
       stopChannelEvents();
       peerManager.setMessageHandler(null);
     };
-  }, [localPeerId, progress, accepts]);
+  }, [localPeerId, progress, accepts, outgoing]);
 
   function initiate(targetId: string) {
     peerManager.start(localPeerId);
@@ -166,6 +175,8 @@ export function useWebRTC(
       },
     });
 
+    const controller = new AbortController();
+    outgoing.set(transferId, controller);
     try {
       // same transferId on every attempt, so the receiver resumes its partial
       await sendWithRetry(
@@ -181,12 +192,16 @@ export function useWebRTC(
             (transferredBytes) => progress.report(transferId, transferredBytes),
             chooseChunkSize(peerManager.getMaxMessageSize(targetId)),
             accepts.wait,
+            controller.signal,
           ),
       );
     } catch (err) {
       progress.finish(transferId);
-      dispatch({ type: "failed", transferId, reason: String(err) });
+      const reason = err instanceof Error ? err.message : String(err);
+      dispatch({ type: "failed", transferId, reason });
       return;
+    } finally {
+      outgoing.delete(transferId);
     }
     progress.finish(transferId);
 

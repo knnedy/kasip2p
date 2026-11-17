@@ -425,3 +425,56 @@ describe("batched writes", () => {
     expect(events).toEqual(["write:3", "suspend"]);
   });
 });
+
+describe("cancellation", () => {
+  it("fails fast mid-file when a write fails: one error, a cancel to the sender, later chunks ignored", async () => {
+    const writes = vi.fn<(chunk: ArrayBuffer) => Promise<void>>().mockRejectedValue(
+      new Error("download cancelled in the browser"),
+    );
+    const abort = vi.fn(async () => {});
+    const store: CreateStore = async (m) => ({
+      offset: 0,
+      write: writes,
+      finish: async () => new File([], m.name),
+      suspend: async () => {},
+      abort,
+    });
+    const replies: string[] = [];
+    const onError = vi.fn();
+    const onProgress = vi.fn();
+    const { handle } = createReceiver(
+      { onStart: vi.fn(), onProgress, onComplete: vi.fn(), onError },
+      store,
+      (msg) => replies.push(msg),
+      1,
+    );
+    handle(meta("t", 100));
+    handle(new ArrayBuffer(10)); // write fails here, long before the file is complete
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
+    handle(new ArrayBuffer(10));
+    await flush();
+
+    expect(onError).toHaveBeenCalledOnce();
+    expect(writes).toHaveBeenCalledOnce();
+    expect(abort).toHaveBeenCalledOnce();
+    expect(onProgress).toHaveBeenCalledTimes(1);
+    expect(replies.map((r) => JSON.parse(r))).toContainEqual({
+      type: "transfer-cancel",
+      transferId: "t",
+      reason: "download cancelled in the browser",
+    });
+  });
+
+  it("stops sending when the signal aborts", async () => {
+    const sink = new FakeSink();
+    const controller = new AbortController();
+    let sent = 0;
+    const done = sendFile(sink, makeFile(100), "t1", (n) => {
+      sent = n;
+      if (n >= 20) controller.abort(new Error("cancelled by receiver"));
+    }, 10, async () => 0, controller.signal);
+    await expect(done).rejects.toThrow("cancelled by receiver");
+    expect(sent).toBe(20);
+    expect(sink.sent.length).toBe(1 + 2); // file-meta + two chunks
+  });
+});

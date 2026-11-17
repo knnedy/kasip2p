@@ -30,7 +30,7 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 - [x] 6. perf(web): batch disk writes when receiving
 - [x] 7. feat(web): stream received files into browser downloads (two-device check)
 - [x] 8. feat(shared): add transfer control peer messages
-- [ ] 9. fix(web): stop the sender when a download is cancelled
+- [x] 9. fix(web): stop the sender when a download is cancelled
 - [ ] 10. test(web): add two-browser transfer benchmark
 - [ ] 11. fix(web): start streamed downloads in production builds
 - [ ] 12. fix(web): drop file copies left in history by older versions
@@ -45,13 +45,13 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 
 ## Next 3 steps
 
-1. fix(web): stop the sender when a download is cancelled
-2. test(web): add two-browser transfer benchmark
-3. fix(web): start streamed downloads in production builds
+1. test(web): add two-browser transfer benchmark
+2. fix(web): start streamed downloads in production builds
+3. fix(web): drop file copies left in history by older versions
 
 ## Half-done files
 
-- prod build: laptop receiver got no download (step 11); cancel leaves sender sending (step 9); on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
+- prod build: laptop receiver got no download (step 11); on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
 
 ## Stage 2 (done, merged)
 
