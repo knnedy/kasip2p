@@ -37,11 +37,12 @@ export default function RootLayout({
         "font-sans",
         inter.variable,
       )}>
-      <QueryProvider>
-        <PairingProvider>
-          <body className="min-h-full flex flex-col">{children}</body>
-        </PairingProvider>
-      </QueryProvider>
+      {/* providers render UI (status banner, modal), so they must sit inside body */}
+      <body className="min-h-full flex flex-col">
+        <QueryProvider>
+          <PairingProvider>{children}</PairingProvider>
+        </QueryProvider>
+      </body>
     </html>
   );
 }
