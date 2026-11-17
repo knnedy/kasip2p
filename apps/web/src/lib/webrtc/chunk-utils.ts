@@ -10,6 +10,8 @@ export const DEFAULT_CHUNK_SIZE = 64 * 1024;
 const MAX_CHUNK_SIZE = 256 * 1024;
 export const HIGH_WATER_MARK = 2 * 1024 * 1024;
 export const LOW_WATER_MARK = 512 * 1024;
+// Disk reads happen per block, prefetched while the previous block is sent.
+export const READ_BLOCK_SIZE = 4 * 1024 * 1024;
 
 // The subset of RTCDataChannel the transfer code needs; lets tests use a fake.
 export interface ChunkSink {
@@ -68,6 +70,7 @@ export async function sendFile(
   chunkSize = DEFAULT_CHUNK_SIZE,
   waitForAccept: (transferId: string) => Promise<number> = async () => 0,
   signal?: AbortSignal, // aborted when either side cancels; rejects with its reason
+  readBlockSize = READ_BLOCK_SIZE,
 ) {
   sink.bufferedAmountLowThreshold = LOW_WATER_MARK;
   const accepted = waitForAccept(transferId); // registered before file-meta goes out
@@ -84,17 +87,28 @@ export async function sendFile(
   let offset = await accepted;
   if (offset > file.size) throw new Error(`receiver offset ${offset} beyond file size`);
   if (offset > 0) onProgress(offset);
-  while (offset < file.size) {
-    signal?.throwIfAborted();
-    if (sink.readyState !== "open") throw new Error("data channel closed");
-    if (sink.bufferedAmount > HIGH_WATER_MARK) {
-      await drained(sink, signal);
-      continue;
+  // whole chunks per block, so chunk boundaries match the unbuffered layout
+  const block = Math.max(chunkSize, Math.floor(readBlockSize / chunkSize) * chunkSize);
+  const read = (from: number) => file.slice(from, Math.min(from + block, file.size)).arrayBuffer();
+  let next = offset < file.size ? read(offset) : null;
+  while (next) {
+    const data = await next;
+    const blockEnd = offset + data.byteLength;
+    next = blockEnd < file.size ? read(blockEnd) : null; // prefetch while sending this one
+    next?.catch(() => {}); // surfaced when awaited
+    for (let at = 0; at < data.byteLength; ) {
+      signal?.throwIfAborted();
+      if (sink.readyState !== "open") throw new Error("data channel closed");
+      if (sink.bufferedAmount > HIGH_WATER_MARK) {
+        await drained(sink, signal);
+        continue;
+      }
+      const chunk = data.slice(at, at + chunkSize);
+      sink.send(chunk);
+      at += chunk.byteLength;
+      offset += chunk.byteLength;
+      onProgress(offset);
     }
-    const buffer = await file.slice(offset, offset + chunkSize).arrayBuffer();
-    sink.send(buffer);
-    offset += buffer.byteLength;
-    onProgress(offset);
   }
 }
 

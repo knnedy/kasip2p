@@ -22,7 +22,8 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 - first bench (128MB, same machine, headless Chrome 157): raw data channel 13.6-17 MB/s,
   app 12.2 MB/s (90% of raw), download streamed in the prod build. Raw ceiling barely moves
   with chunk 64/256KB or buffer 2/8MB; 4 channels on one pc ~16 MB/s; multiple pcs in one
-  page crashed headless Chrome (retest across two contexts in step 14)
+  page crashed headless Chrome; across two contexts 1/2/4 pcs gave 13.1/12.4/11.9 MB/s, so
+  parallel connections do not raise the ceiling (CPU-bound in Chrome). Read-ahead: app 93% of raw
 
 ## Stage 3 plan
 
@@ -39,7 +40,7 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 - [x] 11. chore(deps): update to the latest Render/Vercel-compatible versions
 - [x] 12. fix(web): recover downloads the browser holds back
 - [x] 13. fix(web): drop file copies left in history by older versions
-- [ ] 14. perf(web): read ahead on the sender and drop the receive copy
+- [x] 14. perf(web): read the file ahead in blocks on the sender
 - [ ] 15. feat(web): show connection type and live speed (two-device check)
 - [ ] 16. feat(web): send files through a per-peer queue
 - [ ] 17. feat(web): pause, resume and cancel transfers
@@ -50,13 +51,13 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 
 ## Next 3 steps
 
-1. perf(web): read ahead on the sender and drop the receive copy
-2. feat(web): show connection type and live speed
-3. feat(web): send files through a per-peer queue
+1. feat(web): show connection type and live speed
+2. feat(web): send files through a per-peer queue
+3. feat(web): pause, resume and cancel transfers
 
 ## Half-done files
 
-- .node-version deleted locally (not by Claude), left unstaged pending user; blocked-download retry untested in a real blocking profile (medium confidence); hold TS 7 / web ESLint 10; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
+- blocked-download retry untested in a real blocking profile (medium confidence); hold TS 7 / web ESLint 10; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
 
 ## Stage 2 (done, merged)
 

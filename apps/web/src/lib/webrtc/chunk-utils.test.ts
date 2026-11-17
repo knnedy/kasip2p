@@ -478,3 +478,24 @@ describe("cancellation", () => {
     expect(sink.sent.length).toBe(1 + 2); // file-meta + two chunks
   });
 });
+
+describe("sender read-ahead", () => {
+  it("reads the file in large blocks, not once per chunk, and sends identical bytes", async () => {
+    const file = makeFile(10 * 64 * 1024);
+    const reads: number[] = [];
+    const spied = {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      slice(start: number, end: number) {
+        reads.push(end - start);
+        return file.slice(start, end);
+      },
+    };
+    const sink = new FakeSink();
+    await sendFile(sink, spied, "t1", () => {}, 64 * 1024, async () => 0, undefined, 4 * 64 * 1024);
+    expect(reads.length).toBe(3); // 10 chunks in blocks of 4
+    const sent = new Uint8Array(await new Blob(sink.sent.slice(1) as ArrayBuffer[]).arrayBuffer());
+    expect(sent).toEqual(new Uint8Array(await file.arrayBuffer()));
+  });
+});
