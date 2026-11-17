@@ -14,11 +14,15 @@ Current: Stage 3 (features) on `feat/stage3-features`.
   downloads on completion and deletes the temp copy; no big files kept in OPFS/IDB
 - SW + OPFS need a secure context: LAN http dev on a phone uses the in-memory path
 - TDD seams: shared parsers, SignalingHub, web pure modules (no hook/component tests)
-- two-device checks after steps 3, 7, 14, 17 and 20; merge+push to main at each
-- phase A (8-14) fixes and measures the pipeline before features; from step 10 the
+- two-device checks after steps 3, 7, 15, 18 and 21; merge+push to main at each
+- phase A (8-15) fixes and measures the pipeline before features; from step 10 the
   benchmark (`pnpm bench`) runs after every transfer-related step
 - data path is direct on the network; speed work targets in-browser stops (sender
   stop-and-go reads, receive copy), measured by the benchmark
+- first bench (128MB, same machine, headless Chrome 157): raw data channel 13.6-17 MB/s,
+  app 12.2 MB/s (90% of raw), download streamed in the prod build. Raw ceiling barely moves
+  with chunk 64/256KB or buffer 2/8MB; 4 channels on one pc ~16 MB/s; multiple pcs in one
+  page crashed headless Chrome (retest across two contexts in step 14)
 
 ## Stage 3 plan
 
@@ -31,27 +35,28 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 - [x] 7. feat(web): stream received files into browser downloads (two-device check)
 - [x] 8. feat(shared): add transfer control peer messages
 - [x] 9. fix(web): stop the sender when a download is cancelled
-- [ ] 10. test(web): add two-browser transfer benchmark
-- [ ] 11. fix(web): start streamed downloads in production builds
-- [ ] 12. fix(web): drop file copies left in history by older versions
-- [ ] 13. perf(web): read ahead on the sender and drop the receive copy
-- [ ] 14. feat(web): show connection type and live speed (two-device check)
-- [ ] 15. feat(web): send files through a per-peer queue
-- [ ] 16. feat(web): pause, resume and cancel transfers
-- [ ] 17. feat(web): retry failed sends (two-device check)
-- [ ] 18. feat(shared): add folder paths to file-meta
-- [ ] 19. feat(web): send folders (fixes stuck folder drop; hidden on phones)
-- [ ] 20. feat(web): receive folders as a streamed zip download (two-device check)
+- [x] 10. test(web): add two-browser transfer benchmark
+- [ ] 11. chore(deps): update to the latest Render/Vercel-compatible versions
+- [ ] 12. fix(web): start streamed downloads in production builds
+- [ ] 13. fix(web): drop file copies left in history by older versions
+- [ ] 14. perf(web): read ahead on the sender and drop the receive copy
+- [ ] 15. feat(web): show connection type and live speed (two-device check)
+- [ ] 16. feat(web): send files through a per-peer queue
+- [ ] 17. feat(web): pause, resume and cancel transfers
+- [ ] 18. feat(web): retry failed sends (two-device check)
+- [ ] 19. feat(shared): add folder paths to file-meta
+- [ ] 20. feat(web): send folders (fixes stuck folder drop; hidden on phones)
+- [ ] 21. feat(web): receive folders as a streamed zip download (two-device check)
 
 ## Next 3 steps
 
-1. test(web): add two-browser transfer benchmark
+1. chore(deps): update to the latest Render/Vercel-compatible versions
 2. fix(web): start streamed downloads in production builds
 3. fix(web): drop file copies left in history by older versions
 
 ## Half-done files
 
-- prod build: laptop receiver got no download (step 11); on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
+- step 12 bug did not reproduce in headless Chrome (retry headed / user profile); on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
 
 ## Stage 2 (done, merged)
 

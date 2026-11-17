@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.sw.json",
+    "bench": "node bench/transfer-bench.mts",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
@@ -35,6 +36,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "playwright-core": "^1.65.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "5.1.0"
