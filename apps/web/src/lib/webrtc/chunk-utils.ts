@@ -118,17 +118,31 @@ export const ACCEPT_TIMEOUT_MS = 10_000;
 export function createAcceptRegistry(timeoutMs = ACCEPT_TIMEOUT_MS) {
   const waiters = new Map<
     string,
-    { resolve(offset: number): void; reject(err: Error): void; timer: ReturnType<typeof setTimeout> }
+    {
+      peerId: string | undefined;
+      resolve(offset: number): void;
+      reject(err: Error): void;
+      timer: ReturnType<typeof setTimeout>;
+    }
   >();
 
+  function rejectWhere(match: (peerId: string | undefined) => boolean, reason: string) {
+    for (const [id, waiter] of waiters) {
+      if (!match(waiter.peerId)) continue;
+      clearTimeout(waiter.timer);
+      waiters.delete(id);
+      waiter.reject(new Error(reason));
+    }
+  }
+
   return {
-    wait(transferId: string): Promise<number> {
+    wait(transferId: string, peerId?: string): Promise<number> {
       return new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
           waiters.delete(transferId);
           reject(new Error("receiver did not accept the file"));
         }, timeoutMs);
-        waiters.set(transferId, { resolve, reject, timer });
+        waiters.set(transferId, { peerId, resolve, reject, timer });
       });
     },
     resolve(msg: FileAccept) {
@@ -138,12 +152,11 @@ export function createAcceptRegistry(timeoutMs = ACCEPT_TIMEOUT_MS) {
       waiters.delete(msg.transferId);
       waiter.resolve(msg.offset);
     },
+    rejectPeer(peerId: string, reason: string) {
+      rejectWhere((p) => p === peerId, reason);
+    },
     rejectAll(reason: string) {
-      for (const [id, waiter] of waiters) {
-        clearTimeout(waiter.timer);
-        waiters.delete(id);
-        waiter.reject(new Error(reason));
-      }
+      rejectWhere(() => true, reason);
     },
   };
 }

@@ -348,6 +348,16 @@ describe("createAcceptRegistry", () => {
     vi.useRealTimers();
   });
 
+  it("rejects only the waiters of the device whose channel closed", async () => {
+    const accepts = createAcceptRegistry();
+    const toBob = accepts.wait("a", "bob");
+    const toCarol = accepts.wait("b", "carol");
+    accepts.rejectPeer("bob", "data channel closed");
+    await expect(toBob).rejects.toThrow("data channel closed");
+    accepts.resolve({ type: "file-accept", transferId: "b", offset: 0 });
+    await expect(toCarol).resolves.toBe(0);
+  });
+
   it("rejects all waiters when the channel closes", async () => {
     const accepts = createAcceptRegistry();
     const a = accepts.wait("a");

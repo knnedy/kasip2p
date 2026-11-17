@@ -42,7 +42,7 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 - [x] 13. fix(web): drop file copies left in history by older versions
 - [x] 14. perf(web): read the file ahead in blocks on the sender
 - [x] 15. feat(web): show connection type and live speed (two-device check)
-- [ ] 16. feat(web): send files through a per-peer queue
+- [x] 16. feat(web): send files through a per-peer queue
 - [ ] 17. feat(web): pause, resume and cancel transfers
 - [ ] 18. feat(web): retry failed sends (two-device check)
 - [ ] 19. feat(shared): add folder paths to file-meta
@@ -51,13 +51,13 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 
 ## Next 3 steps
 
-1. feat(web): send files through a per-peer queue
-2. feat(web): pause, resume and cancel transfers
-3. feat(web): retry failed sends
+1. feat(web): pause, resume and cancel transfers
+2. feat(web): retry failed sends
+3. feat(shared): add folder paths to file-meta
 
 ## Half-done files
 
-- two-device check pending (phase A); blocked-download retry untested in a real blocking profile (medium confidence); hold TS 7 / web ESLint 10; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
+- phase-A device check feedback pending; blocked-download retry untested in a real blocking profile; hold TS 7 / web ESLint 10; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
 
 ## Stage 2 (done, merged)
 

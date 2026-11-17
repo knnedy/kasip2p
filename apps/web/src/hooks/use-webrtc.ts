@@ -21,6 +21,7 @@ import { saveTransfer } from "@/lib/store/idb";
 import { peerNames } from "@/lib/signaling/ws-client";
 import { sendWithRetry, TransferCancelled } from "@/lib/transfer/retry";
 import { generateId } from "@/lib/utils";
+import { createSendQueue } from "@/lib/transfer/send-queue";
 
 const REOPEN_TIMEOUT_MS = 30_000;
 
@@ -147,7 +148,7 @@ export function useWebRTC(
     const stopChannelEvents = peerManager.onChannelEvent((remoteId, event) => {
       if (event !== "close") return;
       receivers.get(remoteId)?.suspend();
-      accepts.rejectAll("data channel closed");
+      accepts.rejectPeer(remoteId, "data channel closed");
     });
 
     return () => {
@@ -161,7 +162,10 @@ export function useWebRTC(
     peerManager.connect(targetId);
   }
 
-  async function transfer(targetId: string, file: File) {
+  // One file at a time per device; bound to the latest sendOne below.
+  const [queue] = useState(() => createSendQueue());
+
+  async function sendOne(targetId: string, file: File) {
     const transferId = generateId();
     dispatch({
       type: "started",
@@ -191,7 +195,7 @@ export function useWebRTC(
             transferId,
             (transferredBytes) => progress.report(transferId, transferredBytes),
             chooseChunkSize(peerManager.getMaxMessageSize(targetId)),
-            accepts.wait,
+            (id) => accepts.wait(id, targetId),
             controller.signal,
           ),
       );
@@ -225,5 +229,11 @@ export function useWebRTC(
 
   const transfers = useMemo(() => activeTransfers(state), [state]);
 
-  return { transfers, initiate, transfer, disconnect };
+  useEffect(() => {
+    queue.bind(sendOne);
+  });
+
+  const send = (targetId: string, files: File[]) => queue.add(targetId, files);
+
+  return { transfers, queue, initiate, send, disconnect };
 }

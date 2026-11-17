@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getOrCreatePeerId } from "@/lib/peer-id";
 import { useWebRTC } from "@/hooks/use-webrtc";
 import { useConnectionInfo } from "@/hooks/use-connection-info";
+import { QueuedFiles } from "@/components/queued-files";
 import type { ConnectionInfo } from "@/lib/webrtc/connection-info";
 import { usePeers } from "@/hooks/use-peers";
 import { getTransfers } from "@/lib/store/idb";
@@ -46,7 +47,7 @@ export default function TransferPage() {
   const targetPeer = peers.find((p) => p.meta.peerId === targetId);
   const connection = useConnectionInfo(targetId);
 
-  const { transfers, initiate, transfer } = useWebRTC(localPeerId, () => {
+  const { transfers, queue, initiate, send } = useWebRTC(localPeerId, () => {
     queryClient.invalidateQueries({ queryKey: ["transfers"] });
   });
 
@@ -78,7 +79,7 @@ export default function TransferPage() {
 
   function handleFiles(files: FileList | null) {
     if (!files) return;
-    Array.from(files).forEach((file) => void transfer(targetId, file));
+    send(targetId, Array.from(files));
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -167,6 +168,8 @@ export default function TransferPage() {
             onChange={(e) => handleFiles(e.target.files)}
           />
         </div>
+
+        <QueuedFiles queue={queue} peerId={targetId} />
 
         {activeTransfers.length > 0 && (
           <div className="flex flex-col gap-3">
