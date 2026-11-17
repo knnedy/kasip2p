@@ -14,6 +14,7 @@ export type Transfer =
       info: TransferInfo;
       transferredBytes: number;
       baseBytes: number; // already held when this attempt started (resume)
+      pausedBy: "local" | "remote" | null;
       startedAt: number;
       updatedAt: number;
     }
@@ -32,7 +33,9 @@ export type TransferEvent =
   | { type: "started"; info: TransferInfo; at: number; offset?: number }
   | { type: "progressed"; transferId: string; transferredBytes: number; at: number }
   | { type: "completed"; transferId: string; at: number }
-  | { type: "failed"; transferId: string; reason: string };
+  | { type: "failed"; transferId: string; reason: string }
+  | { type: "paused"; transferId: string; by: "local" | "remote" }
+  | { type: "resumed"; transferId: string };
 
 // Only active transfers move; events for unknown or finished transfers are ignored.
 export function transfersReducer(
@@ -47,6 +50,7 @@ export function transfersReducer(
       info: event.info,
       transferredBytes: event.offset ?? 0,
       baseBytes: event.offset ?? 0,
+      pausedBy: null,
       startedAt: event.at,
       updatedAt: event.at,
     };
@@ -64,6 +68,12 @@ export function transfersReducer(
       next = { ...current, transferredBytes: bytes, updatedAt: event.at };
       break;
     }
+    case "paused":
+      next = { ...current, pausedBy: event.by };
+      break;
+    case "resumed":
+      next = { ...current, pausedBy: null };
+      break;
     case "completed":
       next = {
         status: "completed",
@@ -97,6 +107,7 @@ export function toProgress(
     speedMBps:
       seconds > 0 ? (t.transferredBytes - t.baseBytes) / seconds / 1024 / 1024 : 0,
     direction: t.info.direction,
+    pausedBy: t.pausedBy,
   };
 }
 

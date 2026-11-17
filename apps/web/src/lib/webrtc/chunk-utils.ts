@@ -71,6 +71,7 @@ export async function sendFile(
   waitForAccept: (transferId: string) => Promise<number> = async () => 0,
   signal?: AbortSignal, // aborted when either side cancels; rejects with its reason
   readBlockSize = READ_BLOCK_SIZE,
+  gate?: () => Promise<void>, // resolves while unpaused; checked before each chunk
 ) {
   sink.bufferedAmountLowThreshold = LOW_WATER_MARK;
   const accepted = waitForAccept(transferId); // registered before file-meta goes out
@@ -97,6 +98,8 @@ export async function sendFile(
     next = blockEnd < file.size ? read(blockEnd) : null; // prefetch while sending this one
     next?.catch(() => {}); // surfaced when awaited
     for (let at = 0; at < data.byteLength; ) {
+      signal?.throwIfAborted();
+      if (gate) await gate();
       signal?.throwIfAborted();
       if (sink.readyState !== "open") throw new Error("data channel closed");
       if (sink.bufferedAmount > HIGH_WATER_MARK) {
@@ -204,7 +207,8 @@ export function createReceiver(
   let current: Incoming | null = null;
 
   // Any failure ends the file at once: report it, discard it, tell the sender to stop.
-  function fail(incoming: Incoming, err: unknown) {
+  // notifyPeer is false when the sender itself cancelled.
+  function fail(incoming: Incoming, err: unknown, notifyPeer = true) {
     if (incoming.failed) return;
     incoming.failed = true;
     if (current === incoming) current = null;
@@ -212,7 +216,9 @@ export function createReceiver(
     incoming.pendingBytes = 0;
     callbacks.onError?.(incoming.meta, err);
     const reason = (err instanceof Error ? err.message : String(err)).slice(0, 200);
-    reply(JSON.stringify({ type: "transfer-cancel", transferId: incoming.meta.transferId, reason }));
+    if (notifyPeer) {
+      reply(JSON.stringify({ type: "transfer-cancel", transferId: incoming.meta.transferId, reason }));
+    }
     void incoming.store.then((store) => store.abort()).catch(() => {});
   }
 
@@ -282,6 +288,10 @@ export function createReceiver(
     if (typeof data === "string") {
       const msg = parsePeerMessage(data);
       if (msg?.type === "file-meta") start(msg);
+      else if (msg?.type === "transfer-cancel" && current?.meta.transferId === msg.transferId) {
+        const why = msg.reason ? `: ${msg.reason}` : "";
+        fail(current, new Error(`cancelled by sender${why}`), false);
+      }
       return;
     }
 
@@ -295,5 +305,10 @@ export function createReceiver(
     completeIfDone(incoming);
   }
 
-  return { handle, suspend };
+  // The user cancelled on the receiving side.
+  function cancel(transferId: string, reason = "cancelled by receiver") {
+    if (current?.meta.transferId === transferId) fail(current, new Error(reason));
+  }
+
+  return { handle, suspend, cancel };
 }

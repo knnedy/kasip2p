@@ -509,3 +509,63 @@ describe("sender read-ahead", () => {
     expect(sent).toEqual(new Uint8Array(await file.arrayBuffer()));
   });
 });
+
+describe("pause and cancel", () => {
+  it("holds sending at the gate until it opens", async () => {
+    const sink = new FakeSink();
+    let open!: () => void;
+    let closed = true;
+    const gate = () => (closed ? new Promise<void>((r) => (open = r)) : Promise.resolve());
+    const done = sendFile(sink, makeFile(30), "t1", () => {}, 10, async () => 0, undefined, 10, gate);
+    await flush();
+    expect(sink.sent.length).toBe(1); // file-meta only
+    closed = false;
+    open();
+    await done;
+    expect(sink.sent.length).toBe(4);
+  });
+
+  it("stops a file the sender cancelled, without echoing a cancel back", async () => {
+    const replies: string[] = [];
+    const abort = vi.fn(async () => {});
+    const onError = vi.fn();
+    const store: CreateStore = async (m) => ({
+      offset: 0,
+      write: async () => {},
+      finish: async () => new File([], m.name),
+      suspend: async () => {},
+      abort,
+    });
+    const { handle } = createReceiver(
+      { onStart: vi.fn(), onProgress: vi.fn(), onComplete: vi.fn(), onError },
+      store,
+      (r) => replies.push(r),
+    );
+    handle(meta("t", 100));
+    await flush();
+    handle(JSON.stringify({ type: "transfer-cancel", transferId: "t" }));
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
+    expect(String(onError.mock.calls[0]![1])).toContain("cancelled by sender");
+    expect(abort).toHaveBeenCalled();
+    expect(replies.filter((r) => r.includes("transfer-cancel"))).toEqual([]);
+  });
+
+  it("lets the receiver cancel its current file and tells the sender", async () => {
+    const replies: string[] = [];
+    const onError = vi.fn();
+    const receiver = createReceiver(
+      { onStart: vi.fn(), onProgress: vi.fn(), onComplete: vi.fn(), onError },
+      undefined,
+      (r) => replies.push(r),
+    );
+    receiver.handle(meta("t", 100));
+    await flush();
+    receiver.cancel("t", "cancelled by you");
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
+    expect(replies.map((r) => JSON.parse(r))).toContainEqual({
+      type: "transfer-cancel",
+      transferId: "t",
+      reason: "cancelled by you",
+    });
+  });
+});

@@ -10,7 +10,7 @@ import type { ConnectionInfo } from "@/lib/webrtc/connection-info";
 import { usePeers } from "@/hooks/use-peers";
 import { getTransfers } from "@/lib/store/idb";
 import { pairedPeers, signalingClient } from "@/lib/signaling/ws-client";
-import { ArrowLeft, Upload, Zap, CheckCircle, Clock } from "lucide-react";
+import { ArrowLeft, Upload, Zap, CheckCircle, Clock, Pause, Play, X } from "lucide-react";
 import { OsIcon } from "@/components/os-icon";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -47,7 +47,7 @@ export default function TransferPage() {
   const targetPeer = peers.find((p) => p.meta.peerId === targetId);
   const connection = useConnectionInfo(targetId);
 
-  const { transfers, queue, initiate, send } = useWebRTC(localPeerId, () => {
+  const { transfers, queue, initiate, send, control } = useWebRTC(localPeerId, () => {
     queryClient.invalidateQueries({ queryKey: ["transfers"] });
   });
 
@@ -190,8 +190,32 @@ export default function TransferPage() {
                       {t.fileName}
                     </p>
                     <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
-                      <span>{t.speedMBps.toFixed(1)} MB/s</span>
+                      <span>
+                        {t.pausedBy === "remote"
+                          ? "Paused by other device"
+                          : t.pausedBy === "local"
+                            ? "Paused"
+                            : `${t.speedMBps.toFixed(1)} MB/s`}
+                      </span>
                       <span>{pct}%</span>
+                      <button
+                        type="button"
+                        onClick={() => control(t.transferId, t.pausedBy === "local" ? "resume" : "pause")}
+                        aria-label={`${t.pausedBy === "local" ? "Resume" : "Pause"} ${t.fileName}`}
+                        className="rounded-md p-1 transition-colors hover:text-foreground">
+                        {t.pausedBy === "local" ? (
+                          <Play className="h-3.5 w-3.5" />
+                        ) : (
+                          <Pause className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => control(t.transferId, "cancel")}
+                        aria-label={`Cancel ${t.fileName}`}
+                        className="rounded-md p-1 transition-colors hover:text-foreground">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </div>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">

@@ -22,6 +22,7 @@ import { peerNames } from "@/lib/signaling/ws-client";
 import { sendWithRetry, TransferCancelled } from "@/lib/transfer/retry";
 import { generateId } from "@/lib/utils";
 import { createSendQueue } from "@/lib/transfer/send-queue";
+import { createPauseGate } from "@/lib/transfer/pause-gate";
 
 const REOPEN_TIMEOUT_MS = 30_000;
 
@@ -45,8 +46,12 @@ export function useWebRTC(
   );
 
   const [accepts] = useState(() => createAcceptRegistry());
-  // one per outgoing transfer, aborted when the receiver cancels it
-  const [outgoing] = useState(() => new Map<string, AbortController>());
+  // per outgoing transfer: abort on cancel, gate for either side's pause
+  const [outgoing] = useState(
+    () =>
+      new Map<string, { controller: AbortController; gate: ReturnType<typeof createPauseGate> }>(),
+  );
+  const [receivers] = useState(() => new Map<string, ReturnType<typeof createReceiver>>());
 
   useEffect(() => () => progress.dispose(), [progress]);
 
@@ -58,7 +63,6 @@ export function useWebRTC(
     if (!localPeerId) return;
     peerManager.start(localPeerId);
 
-    const receivers = new Map<string, ReturnType<typeof createReceiver>>();
     const receiverFor = (remoteId: string) =>
       createReceiver(
         {
@@ -129,11 +133,26 @@ export function useWebRTC(
           accepts.resolve(msg);
           return;
         }
-        if (msg?.type === "transfer-cancel" && outgoing.has(msg.transferId)) {
+        const mine = msg && "transferId" in msg ? outgoing.get(msg.transferId) : undefined;
+        if (msg?.type === "transfer-cancel" && mine) {
           const reason = msg.reason ? `: ${msg.reason}` : "";
-          outgoing
-            .get(msg.transferId)
-            ?.abort(new TransferCancelled(`cancelled by receiver${reason}`));
+          mine.controller.abort(new TransferCancelled(`cancelled by receiver${reason}`));
+          return;
+        }
+        if (msg?.type === "transfer-pause" || msg?.type === "transfer-resume") {
+          // our send: the receiver's pause gates it; their receive: display only
+          if (msg.type === "transfer-pause") {
+            mine?.gate.pause("remote");
+            dispatch({ type: "paused", transferId: msg.transferId, by: "remote" });
+          } else {
+            mine?.gate.resume("remote");
+            const stillLocal = mine?.gate.state().local;
+            dispatch(
+              stillLocal
+                ? { type: "paused", transferId: msg.transferId, by: "local" }
+                : { type: "resumed", transferId: msg.transferId },
+            );
+          }
           return;
         }
       }
@@ -154,8 +173,9 @@ export function useWebRTC(
     return () => {
       stopChannelEvents();
       peerManager.setMessageHandler(null);
+      receivers.clear();
     };
-  }, [localPeerId, progress, accepts, outgoing]);
+  }, [localPeerId, progress, accepts, outgoing, receivers]);
 
   function initiate(targetId: string) {
     peerManager.start(localPeerId);
@@ -180,7 +200,8 @@ export function useWebRTC(
     });
 
     const controller = new AbortController();
-    outgoing.set(transferId, controller);
+    const gate = createPauseGate();
+    outgoing.set(transferId, { controller, gate });
     try {
       // same transferId on every attempt, so the receiver resumes its partial
       await sendWithRetry(
@@ -197,6 +218,8 @@ export function useWebRTC(
             chooseChunkSize(peerManager.getMaxMessageSize(targetId)),
             (id) => accepts.wait(id, targetId),
             controller.signal,
+            undefined,
+            () => gate.wait(),
           ),
       );
     } catch (err) {
@@ -223,6 +246,40 @@ export function useWebRTC(
     onCompleteRef.current?.();
   }
 
+  // Pause/resume/cancel from this side, for a send or a receive.
+  function control(transferId: string, action: "pause" | "resume" | "cancel") {
+    const transfer = state[transferId];
+    if (transfer?.status !== "active") return;
+    const { peerId, direction } = transfer.info;
+    const mine = outgoing.get(transferId);
+    const tell = (type: "transfer-pause" | "transfer-resume" | "transfer-cancel") =>
+      peerManager.sendControl(peerId, JSON.stringify({ type, transferId }));
+
+    if (action === "cancel") {
+      if (direction === "sending") {
+        tell("transfer-cancel");
+        mine?.controller.abort(new TransferCancelled("cancelled"));
+      } else {
+        receivers.get(peerId)?.cancel(transferId, "cancelled by receiver");
+      }
+      return;
+    }
+    if (action === "pause") {
+      mine?.gate.pause("local");
+      tell("transfer-pause");
+      dispatch({ type: "paused", transferId, by: "local" });
+      return;
+    }
+    mine?.gate.resume("local");
+    tell("transfer-resume");
+    const stillRemote = mine?.gate.state().remote;
+    dispatch(
+      stillRemote
+        ? { type: "paused", transferId, by: "remote" }
+        : { type: "resumed", transferId },
+    );
+  }
+
   function disconnect(peerId: string) {
     peerManager.close(peerId);
   }
@@ -235,5 +292,5 @@ export function useWebRTC(
 
   const send = (targetId: string, files: File[]) => queue.add(targetId, files);
 
-  return { transfers, queue, initiate, send, disconnect };
+  return { transfers, queue, initiate, send, control, disconnect };
 }

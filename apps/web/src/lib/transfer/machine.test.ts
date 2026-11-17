@@ -31,6 +31,7 @@ describe("transfersReducer", () => {
         transferredBytes: 0,
         speedMBps: 0,
         direction: "sending",
+        pausedBy: null,
       },
     ]);
   });
@@ -109,6 +110,17 @@ describe("transfersReducer", () => {
       { type: "started", info, at: 5_000, offset: 10 },
     );
     expect(state["t1"]).toMatchObject({ status: "active", transferredBytes: 10 });
+  });
+
+  it("marks a transfer paused and resumed without losing progress", () => {
+    const paused = run(
+      started,
+      { type: "progressed", transferId: "t1", transferredBytes: 5, at: 1_100 },
+      { type: "paused", transferId: "t1", by: "remote" },
+    );
+    expect(activeTransfers(paused)[0]).toMatchObject({ transferredBytes: 5, pausedBy: "remote" });
+    const resumed = transfersReducer(paused, { type: "resumed", transferId: "t1" });
+    expect(activeTransfers(resumed)[0]?.pausedBy).toBeNull();
   });
 
   it("filters active transfers by peer", () => {
