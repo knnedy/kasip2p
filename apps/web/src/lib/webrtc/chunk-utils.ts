@@ -129,7 +129,8 @@ export function createAcceptRegistry(timeoutMs = ACCEPT_TIMEOUT_MS) {
 export interface ReceiverCallbacks {
   onStart(meta: FileMeta, offset: number): void;
   onProgress(meta: FileMeta, transferredBytes: number): void;
-  onComplete(meta: FileMeta, file: File): void | Promise<void>;
+  // file is null when the store already delivered it (streamed download)
+  onComplete(meta: FileMeta, file: File | null): void | Promise<void>;
   onError?(meta: FileMeta, error: unknown): void;
   onSuspend?(meta: FileMeta): void; // interrupted; partial kept for a resume
 }

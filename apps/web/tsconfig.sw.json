@@ -1,0 +1,14 @@
+{
+  // The download worker is plain JS (served as-is from public/) but type-checked here;
+  // it needs WebWorker types, which clash with the app's DOM lib.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "WebWorker"],
+    "allowJs": true,
+    "checkJs": true,
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["public/download-sw.js"]
+}

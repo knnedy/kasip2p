@@ -1,11 +1,13 @@
 import type { FileMeta } from "@kasip2p/shared";
-import { deletePartial, getPartial, savePartial } from "@/lib/store/idb";
+import { clearPartials, deletePartial, getPartial, savePartial } from "@/lib/store/idb";
+import { createStreamDownloads } from "./download-stream";
+import { openWorkerDownload, streamDownloadsAvailable } from "./download-worker";
 
 // Where an incoming file's bytes go while it is being received.
 export interface IncomingFileStore {
   readonly offset: number; // bytes already held from an earlier attempt
   write(chunk: ArrayBuffer): Promise<void>;
-  finish(): Promise<File>;
+  finish(): Promise<File | null>; // null: already delivered to the user (streamed)
   suspend(): Promise<void>; // keep what we have for a later resume
   abort(): Promise<void>; // discard everything
 }
@@ -97,7 +99,17 @@ function opfsSupported(): boolean {
   );
 }
 
+const streamed = createStreamDownloads(openWorkerDownload);
+
+// Best first: stream into a browser download; else stage on disk (OPFS), else memory.
 export const createIncomingStore: CreateStore = async (meta) => {
+  if (await streamDownloadsAvailable()) {
+    try {
+      return await streamed(meta);
+    } catch (err) {
+      console.warn("streamed download failed to start, staging instead", err);
+    }
+  }
   if (opfsSupported()) {
     try {
       return await opfsStore(meta);
@@ -107,6 +119,27 @@ export const createIncomingStore: CreateStore = async (meta) => {
   }
   return memoryStore(meta);
 };
+
+// The browser copies a blob-URL download lazily, so the staged file must outlive it.
+const RELEASE_BASE_MS = 60_000;
+const RELEASE_MIN_RATE = 20 * 1024 * 1024; // bytes/s assumed for the copy
+
+export function releaseAfterDownload(transferId: string, size: number) {
+  const delay = RELEASE_BASE_MS + (size / RELEASE_MIN_RATE) * 1000;
+  setTimeout(() => void removeIncoming(transferId), delay);
+}
+
+// Resume is per session, so anything staged by an earlier session is garbage.
+export async function clearStaleIncoming() {
+  await clearPartials().catch(() => {});
+  if (!opfsSupported()) return;
+  try {
+    const root = await navigator.storage.getDirectory();
+    await root.removeEntry(INCOMING_DIR, { recursive: true });
+  } catch {
+    // nothing staged
+  }
+}
 
 // Deletes the temp file and manifest once saved elsewhere (or abandoned).
 export async function removeIncoming(transferId: string) {

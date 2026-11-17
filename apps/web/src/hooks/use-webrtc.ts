@@ -11,7 +11,12 @@ import {
 import { parsePeerMessage } from "@kasip2p/shared";
 import { activeTransfers, transfersReducer } from "@/lib/transfer/machine";
 import { createProgressThrottle } from "@/lib/transfer/progress-throttle";
-import { createIncomingStore, removeIncoming } from "@/lib/transfer/file-store";
+import {
+  createIncomingStore,
+  releaseAfterDownload,
+  removeIncoming,
+} from "@/lib/transfer/file-store";
+import { downloadBlob } from "@/lib/download";
 import { saveTransfer } from "@/lib/store/idb";
 import { peerNames } from "@/lib/signaling/ws-client";
 import { sendWithRetry } from "@/lib/transfer/retry";
@@ -71,20 +76,21 @@ export function useWebRTC(
             progress.report(meta.transferId, transferredBytes),
           onComplete: async (meta, file) => {
             progress.finish(meta.transferId);
-            await saveTransfer(
-              {
-                id: meta.transferId,
-                fileName: file.name,
-                fileSize: file.size,
-                mimeType: file.type,
-                direction: "received",
-                peerId: remoteId,
-                peerName: peerNames.get(remoteId),
-                completedAt: Date.now(),
-              },
-              file,
-            );
-            await removeIncoming(meta.transferId);
+            // staged (non-streamed) files are handed to the browser as a normal download
+            if (file) downloadBlob(file, meta.name);
+            // history is metadata only; the file itself lives in Downloads
+            await saveTransfer({
+              id: meta.transferId,
+              fileName: meta.name,
+              fileSize: meta.size,
+              mimeType: meta.mimeType,
+              direction: "received",
+              peerId: remoteId,
+              peerName: peerNames.get(remoteId),
+              completedAt: Date.now(),
+            });
+            if (file) releaseAfterDownload(meta.transferId, meta.size);
+            else await removeIncoming(meta.transferId);
             dispatch({
               type: "completed",
               transferId: meta.transferId,

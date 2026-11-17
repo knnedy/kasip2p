@@ -44,3 +44,7 @@ export async function getPartial(transferId: string) {
 export async function deletePartial(transferId: string) {
   await del(transferId, partialStore());
 }
+
+export async function clearPartials() {
+  await clear(partialStore());
+}

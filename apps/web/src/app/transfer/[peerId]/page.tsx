@@ -209,7 +209,12 @@ export default function TransferPage() {
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {formatBytes(record.fileSize)} ·{" "}
-                    {record.direction === "received" ? "received" : "sent"} ·{" "}
+                    {record.direction === "sent"
+                      ? "sent"
+                      : blob
+                        ? "received"
+                        : "saved to Downloads"}{" "}
+                    ·{" "}
                     {new Date(record.completedAt).toLocaleTimeString()}
                   </p>
                 </div>

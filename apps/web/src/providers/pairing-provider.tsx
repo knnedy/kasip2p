@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { getOrCreatePeerId } from "@/lib/peer-id";
 import { signalingClient } from "@/lib/signaling/ws-client";
 import { peerManager } from "@/lib/webrtc/peer-manager";
+import { registerDownloadWorker } from "@/lib/transfer/download-worker";
+import { clearStaleIncoming } from "@/lib/transfer/file-store";
 import { useIncomingPair } from "@/hooks/use-incoming-pair";
 import { PairRequestModal } from "@/components/pair-request-modal";
 import { ConnectionStatus } from "@/components/connection-status";
@@ -16,6 +18,8 @@ export function PairingProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!localPeerId) return;
+    registerDownloadWorker();
+    void clearStaleIncoming();
     signalingClient.connect(localPeerId);
     // handle SDP/ICE app-wide so nothing is lost while routing to /transfer
     peerManager.start(localPeerId);
