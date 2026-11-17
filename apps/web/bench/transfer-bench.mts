@@ -1,10 +1,18 @@
 // Two-browser transfer benchmark: drives the real app (prod build) in system Chrome.
-// Usage: pnpm bench [--size-mb 512] [--headed]. Needs ports 3001 and 3300 free.
-import { spawn, type ChildProcess } from "node:child_process";
+// Usage: pnpm bench [--size-mb 512] [--folder] [--headed]. Needs ports 3001 and 3300 free.
+// --folder sends a nested folder (size split across files) and checks the zip with python3.
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { createReadStream, createWriteStream, mkdtempSync, rmSync, statSync } from "node:fs";
+import {
+  createReadStream,
+  createWriteStream,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { chromium, type Page } from "playwright-core";
 
@@ -50,6 +58,43 @@ async function makeFile(dir: string, sizeMb: number) {
   }
   await new Promise<void>((r) => out.end(() => r()));
   return path;
+}
+
+// photos/a.bin, photos/2024/b.bin, photos/2024/deep/c.bin, sizes summing to sizeMb.
+async function makeFolder(dir: string, sizeMb: number) {
+  const root = join(dir, "photos");
+  const parts = ["a.bin", "2024/b.bin", "2024/deep/c.bin"];
+  const shares = [Math.ceil(sizeMb / 2), Math.ceil(sizeMb / 4), 0];
+  shares[2] = Math.max(1, sizeMb - shares[0]! - shares[1]!);
+  for (const [i, rel] of parts.entries()) {
+    mkdirSync(dirname(join(root, rel)), { recursive: true });
+    const made = await makeFile(dirname(join(root, rel)), shares[i]!);
+    execFileSync("mv", [made, join(root, rel)]);
+  }
+  return root;
+}
+
+// Every file under root must appear in the zip as "photos/<rel>" with identical bytes.
+function zipMatchesFolder(zipPath: string, root: string): boolean {
+  const check = `
+import hashlib, os, sys, zipfile
+zip_path, root = sys.argv[1], sys.argv[2]
+top = os.path.basename(root)
+want = {}
+for d, _, files in os.walk(root):
+    for f in files:
+        p = os.path.join(d, f)
+        want[top + "/" + os.path.relpath(p, root)] = hashlib.sha256(open(p, "rb").read()).hexdigest()
+z = zipfile.ZipFile(zip_path)
+got = {i.filename: hashlib.sha256(z.read(i)).hexdigest() for i in z.infolist()}
+sys.exit(0 if got == want and z.testzip() is None else 1)
+`;
+  try {
+    execFileSync("python3", ["-I", "-c", check, zipPath, root]);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function sha256(path: string) {
@@ -114,7 +159,8 @@ async function main() {
     await waitForHttp("http://localhost:3001/ping");
     await waitForHttp(APP);
 
-    const file = await makeFile(dir, SIZE_MB);
+    const folderMode = flag("--folder");
+    const file = folderMode ? await makeFolder(dir, SIZE_MB) : await makeFile(dir, SIZE_MB);
     browser = await chromium.launch({
       channel: "chrome",
       headless: !flag("--headed"),
@@ -155,18 +201,22 @@ async function main() {
 
     const downloadStarted = receiver.waitForEvent("download", { timeout: 10 * 60_000 });
     const t0 = performance.now();
-    await sender.locator('input[type="file"][multiple]').setInputFiles(file);
+    const input = folderMode ? "input[webkitdirectory]" : 'input[type="file"][multiple]';
+    await sender.locator(input).setInputFiles(file);
     const download = await downloadStarted;
     const tFirst = performance.now();
     const savedPath = await download.path();
     const tDone = performance.now();
 
     const bytes = statSync(savedPath).size;
-    const intact = bytes === SIZE_MB * MB && (await sha256(savedPath)) === (await sha256(file));
+    const intact = folderMode
+      ? download.suggestedFilename() === "photos.zip" && zipMatchesFolder(savedPath, file)
+      : bytes === SIZE_MB * MB && (await sha256(savedPath)) === (await sha256(file));
     const seconds = (tDone - t0) / 1000;
     const app = SIZE_MB / seconds;
 
-    console.log(`\nKasiP2P transfer benchmark (${SIZE_MB} MB, same machine, Chrome)`);
+    const what = folderMode ? "folder → zip" : "file";
+    console.log(`\nKasiP2P transfer benchmark (${SIZE_MB} MB ${what}, same machine, Chrome)`);
     console.table({
       "raw data channel": { "MB/s": raw.toFixed(1) },
       "app: file → download": { "MB/s": app.toFixed(1) },

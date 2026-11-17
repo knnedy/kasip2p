@@ -87,7 +87,8 @@ export function useWebRTC(
           onComplete: async (meta, file) => {
             progress.finish(meta.transferId);
             // staged (non-streamed) files are handed to the browser as a normal download
-            if (file) downloadBlob(file, meta.name);
+            // file.name, not meta.name: a finished folder arrives as "<folder>.zip"
+            if (file) downloadBlob(file, file.name);
             // history is metadata only; the file itself lives in Downloads
             await saveTransfer({
               id: meta.transferId,
@@ -99,7 +100,7 @@ export function useWebRTC(
               peerName: peerNames.get(remoteId),
               completedAt: Date.now(),
             });
-            if (file) releaseAfterDownload(meta.transferId, meta.size);
+            if (file) releaseAfterDownload(meta.folder?.id ?? meta.transferId, file.size);
             else await removeIncoming(meta.transferId);
             dispatch({
               type: "completed",

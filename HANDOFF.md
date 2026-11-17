@@ -47,15 +47,15 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 - [x] 18. feat(web): retry failed sends (two-device check)
 - [x] 19. feat(shared): add folder paths to file-meta
 - [x] 20. feat(web): send folders (fixes stuck folder drop; hidden on phones)
-- [ ] 21. feat(web): receive folders as a streamed zip download (two-device check)
+- [x] 21. feat(web): receive folders as a streamed zip download (two-device check)
 
 ## Next 3 steps
 
-1. feat(web): receive folders as a streamed zip download
+1. Stage wrap-up: summarize and ask before next stage
 
 ## Half-done files
 
-- until step 21, a receiver saves folder files one by one (no zip); device test of steps 1-21 pending; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
+- Stage 3 complete; device test of all steps pending; next: Stage 4 (motion polish with emil-design-eng, tokens for leftover #00d9ff, prefers-reduced-motion); both-sides-paused display quirk; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
 
 ## Stage 2 (done, merged)
 

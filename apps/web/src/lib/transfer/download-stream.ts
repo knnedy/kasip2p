@@ -1,5 +1,5 @@
 import type { FileMeta } from "@kasip2p/shared";
-import type { CreateStore, IncomingFileStore } from "./file-store";
+import type { CreateStore, IncomingFileStore, StoreMeta } from "./file-store";
 
 // One browser download fed chunk by chunk (see public/download-sw.js).
 export interface DownloadSink {
@@ -28,11 +28,11 @@ const encodeRfc5987 = (s: string) =>
   encodeURIComponent(s).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
 
 // Name and type come from the peer: always a sandboxed octet-stream attachment.
-export function downloadHeaders(meta: FileMeta): Record<string, string> {
+export function downloadHeaders(meta: StoreMeta): Record<string, string> {
   const ascii = meta.name.replace(/[^\x20-\x7e]|["\\]/g, "_");
   return {
     "Content-Type": "application/octet-stream",
-    "Content-Length": String(meta.size),
+    ...(!meta.lengthUnknown && { "Content-Length": String(meta.size) }),
     "Content-Disposition": `attachment; filename="${ascii}"; filename*=UTF-8''${encodeRfc5987(meta.name)}`,
     "Content-Security-Policy": "sandbox",
     "X-Content-Type-Options": "nosniff",

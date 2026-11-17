@@ -4,6 +4,7 @@ import { createStreamDownloads } from "./download-stream";
 import { createPendingSaves } from "./pending-saves";
 export type { PendingSave } from "./pending-saves";
 import { openWorkerDownload, streamDownloadsAvailable } from "./download-worker";
+import { createFolderZips } from "./folder-zips";
 
 // Where an incoming file's bytes go while it is being received.
 export interface IncomingFileStore {
@@ -14,7 +15,9 @@ export interface IncomingFileStore {
   abort(): Promise<void>; // discard everything
 }
 
-export type CreateStore = (meta: FileMeta) => Promise<IncomingFileStore>;
+// lengthUnknown: a container (folder zip) whose final size is not known up front.
+export type StoreMeta = FileMeta & { lengthUnknown?: boolean };
+export type CreateStore = (meta: StoreMeta) => Promise<IncomingFileStore>;
 
 const INCOMING_DIR = "incoming";
 const LARGE_IN_MEMORY = 500 * 1024 * 1024;
@@ -110,7 +113,7 @@ const streamed = createStreamDownloads(openWorkerDownload, undefined, {
 });
 
 // Best first: stream into a browser download; else stage on disk (OPFS), else memory.
-export const createIncomingStore: CreateStore = async (meta) => {
+const pickStore: CreateStore = async (meta) => {
   if (await streamDownloadsAvailable()) {
     try {
       return await streamed(meta);
@@ -127,6 +130,9 @@ export const createIncomingStore: CreateStore = async (meta) => {
   }
   return memoryStore(meta);
 };
+
+// Folders arrive as one zip through whichever store pickStore chooses.
+export const createIncomingStore = createFolderZips(pickStore);
 
 // The browser copies a blob-URL download lazily, so the staged file must outlive it.
 const RELEASE_BASE_MS = 60_000;

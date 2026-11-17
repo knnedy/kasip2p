@@ -188,6 +188,11 @@ describe("downloadHeaders", () => {
     });
   });
 
+  it("leaves out Content-Length when the final size is unknown (folder zips)", () => {
+    const headers = downloadHeaders({ ...meta({ name: "pics.zip" }), lengthUnknown: true });
+    expect(headers).not.toHaveProperty("Content-Length");
+  });
+
   it("encodes non-ASCII and quote characters safely in the filename", () => {
     const disposition = downloadHeaders(meta({ name: 'ripoti "Q1" (ya mwisho)ñ.pdf' }))[
       "Content-Disposition"
