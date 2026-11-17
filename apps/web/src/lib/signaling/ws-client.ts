@@ -3,6 +3,7 @@ import { SignalingClient, type SocketLike } from "./client";
 import { getDeviceMeta } from "./device-meta";
 import { createDeviceNameStore } from "./device-name";
 import { createPeerNames } from "./peer-names";
+import { createPairedPeers } from "@/lib/pairing/paired-peers";
 
 export type { SignalingStatus } from "./client";
 
@@ -61,8 +62,13 @@ export const signalingClient = new SignalingClient({
 });
 
 export const peerNames = createPeerNames();
+export const pairedPeers = createPairedPeers({
+  getItem: (k) => window.sessionStorage.getItem(k),
+  setItem: (k, v) => window.sessionStorage.setItem(k, v),
+});
 signalingClient.onMessage((msg) => {
   if (msg.type === "peer-list") peerNames.update(msg.peers);
+  pairedPeers.observe(msg);
 });
 
 // Saves locally and tells the network; returns null for an invalid name.

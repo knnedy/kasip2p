@@ -22,7 +22,7 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 - [x] 2. feat(signaling): apply name updates and rebroadcast peers
 - [x] 3. feat(web): rename this device (two-device check)
 - [x] 4. fix(web): render providers inside body
-- [ ] 5. fix(web): remember paired devices and skip re-pairing
+- [x] 5. fix(web): remember paired devices and skip re-pairing
 - [ ] 6. perf(web): batch disk writes when receiving
 - [ ] 7. feat(web): stream received files into browser downloads (two-device check)
 - [ ] 8. feat(web): send files through a per-peer queue
@@ -35,9 +35,9 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 
 ## Next 3 steps
 
-1. fix(web): remember paired devices and skip re-pairing
-2. perf(web): batch disk writes when receiving
-3. feat(web): stream received files into browser downloads
+1. perf(web): batch disk writes when receiving
+2. feat(web): stream received files into browser downloads
+3. feat(web): send files through a per-peer queue
 
 ## Half-done files
 

@@ -5,6 +5,7 @@ import { usePeers } from "@/hooks/use-peers";
 import type { PeerEntry } from "@/hooks/use-peers";
 import { OsIcon } from "@/components/os-icon";
 import { DeviceNameEditor } from "@/components/device-name-editor";
+import { usePairedPeers } from "@/hooks/use-paired-peers";
 import { Zap, Shield, Wifi } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getOrCreatePeerId } from "@/lib/peer-id";
@@ -149,6 +150,7 @@ export default function Home() {
   const angleRef = useRef<number>(0);
   const peersRef = useRef<PeerEntry[]>([]);
   const { peers } = usePeers(peerId);
+  const paired = usePairedPeers();
 
   // keep peersRef in sync without restarting the animation
   useEffect(() => {
@@ -227,30 +229,39 @@ export default function Home() {
             </p>
           </div>
           <div className="flex flex-col gap-2">
-            {peers.map((peer: PeerEntry) => (
-              <button
-                onClick={() => router.push(`/pair/${peer.meta.peerId}`)}
-                key={peer.meta.peerId}
-                className="group flex w-full items-center gap-4 rounded-xl border border-[#00d9ff]/10 bg-card px-4 py-3 text-left transition-all duration-200 hover:border-[#00d9ff]/30 hover:bg-card/80">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#00d9ff]/20 bg-[#00d9ff]/5">
-                  <OsIcon os={peer.meta.os} size={20} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {peer.meta.name}
-                  </p>
-                  <p className="text-xs capitalize text-muted-foreground">
-                    {peer.meta.os} · {peer.connectionState}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-[#00d9ff]/20 bg-[#00d9ff]/5 px-3 py-1.5 transition-all group-hover:border-[#00d9ff]/40 group-hover:bg-[#00d9ff]/10">
-                  <Zap className="h-3 w-3 text-[#00d9ff]" />
-                  <span className="text-xs font-medium text-[#00d9ff]">
-                    Connect
-                  </span>
-                </div>
-              </button>
-            ))}
+            {peers.map((peer: PeerEntry) => {
+              const isPaired = paired.includes(peer.meta.peerId);
+              return (
+                <button
+                  onClick={() =>
+                    router.push(
+                      `/${isPaired ? "transfer" : "pair"}/${peer.meta.peerId}`,
+                    )
+                  }
+                  key={peer.meta.peerId}
+                  className="group flex w-full items-center gap-4 rounded-xl border border-[#00d9ff]/10 bg-card px-4 py-3 text-left transition-all duration-200 hover:border-[#00d9ff]/30 hover:bg-card/80"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#00d9ff]/20 bg-[#00d9ff]/5">
+                    <OsIcon os={peer.meta.os} size={20} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {peer.meta.name}
+                    </p>
+                    <p className="text-xs capitalize text-muted-foreground">
+                      {peer.meta.os} ·{" "}
+                      {isPaired ? "paired" : peer.connectionState}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-[#00d9ff]/20 bg-[#00d9ff]/5 px-3 py-1.5 transition-all group-hover:border-[#00d9ff]/40 group-hover:bg-[#00d9ff]/10">
+                    <Zap className="h-3 w-3 text-[#00d9ff]" />
+                    <span className="text-xs font-medium text-[#00d9ff]">
+                      {isPaired ? "Open" : "Connect"}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -273,7 +284,8 @@ export default function Home() {
             ].map(({ icon: Icon, title, desc }) => (
               <div
                 key={title}
-                className="flex flex-col items-center gap-2 rounded-xl border border-[#00d9ff]/10 bg-card px-4 py-5 text-center">
+                className="flex flex-col items-center gap-2 rounded-xl border border-[#00d9ff]/10 bg-card px-4 py-5 text-center"
+              >
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#00d9ff]/10">
                   <Icon className="h-4 w-4 text-[#00d9ff]" />
                 </div>

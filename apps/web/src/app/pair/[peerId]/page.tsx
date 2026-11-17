@@ -4,7 +4,7 @@ import { useEffect, useReducer, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { getOrCreatePeerId } from "@/lib/peer-id";
-import { signalingClient } from "@/lib/signaling/ws-client";
+import { pairedPeers, signalingClient } from "@/lib/signaling/ws-client";
 import {
   initialPairingState,
   pairingReducer,
@@ -67,6 +67,12 @@ export default function PairPage() {
   useEffect(() => {
     if (!localPeerId || !targetId) return;
 
+    // already paired in this tab: the server still holds it, so skip the PIN
+    if (role === "requester" && pairedPeers.has(targetId)) {
+      router.replace(`/transfer/${targetId}`);
+      return;
+    }
+
     if (role === "approver") {
       // Device B registers its PIN with the server
       signalingClient.send({
@@ -105,11 +111,12 @@ export default function PairPage() {
     });
 
     return () => cleanup();
-  }, [localPeerId, targetId, pin, role]);
+  }, [localPeerId, targetId, pin, role, router]);
 
   useEffect(() => {
     if (state.status !== "paired") return;
-    const timer = setTimeout(() => router.push(`/transfer/${targetId}`), 1200);
+    // replace, so Back from transfers goes home instead of re-pairing
+    const timer = setTimeout(() => router.replace(`/transfer/${targetId}`), 1200);
     return () => clearTimeout(timer);
   }, [state.status, router, targetId]);
 

@@ -6,6 +6,7 @@ import { getOrCreatePeerId } from "@/lib/peer-id";
 import { useWebRTC } from "@/hooks/use-webrtc";
 import { usePeers } from "@/hooks/use-peers";
 import { getTransfers } from "@/lib/store/idb";
+import { pairedPeers, signalingClient } from "@/lib/signaling/ws-client";
 import { downloadBlob } from "@/lib/download";
 import { ArrowLeft, Upload, Zap, CheckCircle, Clock } from "lucide-react";
 import { OsIcon } from "@/components/os-icon";
@@ -46,6 +47,15 @@ export default function TransferPage() {
     initiate(targetId);
   }, [localPeerId, targetId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // the server forgot the pairing (e.g. it restarted): drop it and pair again
+  useEffect(() => {
+    return signalingClient.onMessage((msg) => {
+      if (msg.type !== "error" || msg.code !== "unauthorized") return;
+      pairedPeers.forget(targetId);
+      router.replace(`/pair/${targetId}`);
+    });
+  }, [targetId, router]);
+
   const { data: history = [] } = useQuery({
     queryKey: ["transfers"],
     queryFn: getTransfers,
@@ -72,7 +82,7 @@ export default function TransferPage() {
 
       <header className="relative z-10 flex items-center gap-4 border-b border-border px-6 py-4">
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push("/")}
           className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
           <ArrowLeft className="h-3.5 w-3.5" />
           Back
