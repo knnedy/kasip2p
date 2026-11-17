@@ -51,7 +51,6 @@ export interface TransferRecord {
   peerId: string;
   peerName: string;
   completedAt: number;
-  downloadUrl?: string; // only on received files, created from the assembled blob
 }
 
 export interface TransferProgress {

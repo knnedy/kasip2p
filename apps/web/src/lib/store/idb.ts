@@ -1,18 +1,22 @@
 import { set, get, del, entries, clear, createStore, type UseStore } from "idb-keyval";
 import type { TransferRecord } from "@kasip2p/shared";
+import { stripStoredBlobs } from "./strip-blobs";
 
-export async function saveTransfer(record: TransferRecord, blob?: Blob) {
-  await set(record.id, { record, blob });
+// History is metadata only; received files live in the user's Downloads.
+export async function saveTransfer(record: TransferRecord) {
+  await set(record.id, { record });
 }
 
-// Returns blobs, not object URLs; callers create URLs on demand (see lib/download).
-export async function getTransfers(): Promise<
-  { record: TransferRecord; blob?: Blob }[]
-> {
-  const all = await entries<string, { record: TransferRecord; blob?: Blob }>();
+export async function getTransfers(): Promise<{ record: TransferRecord }[]> {
+  const all = await entries<string, { record: TransferRecord }>();
   return all
-    .map(([, value]) => ({ record: value.record, blob: value.blob }))
+    .map(([, value]) => ({ record: value.record }))
     .sort((a, b) => b.record.completedAt - a.record.completedAt);
+}
+
+// One-off cleanup of file copies stored by older versions.
+export async function dropStoredFileCopies() {
+  return stripStoredBlobs({ entries: () => entries(), set: (k, v) => set(k, v) });
 }
 
 export async function deleteTransfer(id: string) {

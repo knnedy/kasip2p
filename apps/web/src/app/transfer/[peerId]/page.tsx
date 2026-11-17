@@ -7,7 +7,6 @@ import { useWebRTC } from "@/hooks/use-webrtc";
 import { usePeers } from "@/hooks/use-peers";
 import { getTransfers } from "@/lib/store/idb";
 import { pairedPeers, signalingClient } from "@/lib/signaling/ws-client";
-import { downloadBlob } from "@/lib/download";
 import { ArrowLeft, Upload, Zap, CheckCircle, Clock } from "lucide-react";
 import { OsIcon } from "@/components/os-icon";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -198,7 +197,7 @@ export default function TransferPage() {
                 History
               </p>
             </div>
-            {peerHistory.map(({ record, blob }) => (
+            {peerHistory.map(({ record }) => (
               <div
                 key={record.id}
                 className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3">
@@ -209,26 +208,11 @@ export default function TransferPage() {
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {formatBytes(record.fileSize)} ·{" "}
-                    {record.direction === "sent"
-                      ? "sent"
-                      : blob
-                        ? "received"
-                        : "saved to Downloads"}{" "}
+                    {record.direction === "sent" ? "sent" : "saved to Downloads"}{" "}
                     ·{" "}
                     {new Date(record.completedAt).toLocaleTimeString()}
                   </p>
                 </div>
-                {record.direction === "received" && blob && (
-                  <button
-                    type="button"
-                    className="shrink-0 rounded-lg border border-[#00d9ff]/20 bg-[#00d9ff]/5 px-3 py-1.5 text-xs font-medium text-[#00d9ff] transition-all hover:bg-[#00d9ff]/10"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      downloadBlob(blob, record.fileName);
-                    }}>
-                    Download
-                  </button>
-                )}
               </div>
             ))}
           </div>
