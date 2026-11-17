@@ -23,7 +23,7 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 - [x] 3. feat(web): rename this device (two-device check)
 - [x] 4. fix(web): render providers inside body
 - [x] 5. fix(web): remember paired devices and skip re-pairing
-- [ ] 6. perf(web): batch disk writes when receiving
+- [x] 6. perf(web): batch disk writes when receiving
 - [ ] 7. feat(web): stream received files into browser downloads (two-device check)
 - [ ] 8. feat(web): send files through a per-peer queue
 - [ ] 9. feat(shared): add transfer control peer messages
@@ -35,13 +35,13 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 
 ## Next 3 steps
 
-1. perf(web): batch disk writes when receiving
-2. feat(web): stream received files into browser downloads
-3. feat(web): send files through a per-peer queue
+1. feat(web): stream received files into browser downloads
+2. feat(web): send files through a per-peer queue
+3. feat(shared): add transfer control peer messages
 
 ## Half-done files
 
-- rename check pending; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF; step 8 scopes accept waiters per peer
+- rename check pending; need prod-build speed numbers; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF; step 8 scopes accept waiters per peer
 
 ## Stage 2 (done, merged)
 

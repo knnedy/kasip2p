@@ -139,6 +139,22 @@ interface Incoming {
   store: Promise<IncomingFileStore>;
   received: number;
   writes: Promise<void>; // chained so chunks hit the store strictly in order
+  pending: ArrayBuffer[]; // not yet handed to the store
+  pendingBytes: number;
+}
+
+// Fewer, larger store writes: per-write overhead dominates at 64KB chunks.
+export const WRITE_BATCH_BYTES = 4 * 1024 * 1024;
+
+function concat(chunks: ArrayBuffer[], total: number): ArrayBuffer {
+  if (chunks.length === 1) return chunks[0]!;
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(new Uint8Array(c), at);
+    at += c.byteLength;
+  }
+  return out.buffer;
 }
 
 // One receiver per channel; handles one file at a time in arrival order.
@@ -146,6 +162,7 @@ export function createReceiver(
   callbacks: ReceiverCallbacks,
   createStore: CreateStore = memoryStore,
   reply: (message: string) => void = () => {},
+  batchBytes = WRITE_BATCH_BYTES,
 ) {
   let current: Incoming | null = null;
 
@@ -153,10 +170,19 @@ export function createReceiver(
     incoming.writes = incoming.writes.then(async () => op(await incoming.store));
   }
 
+  function flush(incoming: Incoming) {
+    if (incoming.pendingBytes === 0) return;
+    const batch = concat(incoming.pending, incoming.pendingBytes);
+    incoming.pending = [];
+    incoming.pendingBytes = 0;
+    enqueue(incoming, (store) => store.write(batch));
+  }
+
   // Completion is by byte count, so empty files finish on their file-meta alone.
   function completeIfDone(incoming: Incoming) {
     if (current !== incoming || incoming.received < incoming.meta.size) return;
     current = null;
+    flush(incoming);
     incoming.writes
       .then(async () => {
         const file = await (await incoming.store).finish();
@@ -175,6 +201,8 @@ export function createReceiver(
       store: createStore(meta),
       received: 0,
       writes: Promise.resolve(),
+      pending: [],
+      pendingBytes: 0,
     };
     current = incoming;
     // tell the sender where to start; a resumed file skips what we already hold
@@ -195,6 +223,7 @@ export function createReceiver(
     const incoming = current;
     if (!incoming) return;
     current = null;
+    flush(incoming);
     enqueue(incoming, (store) => store.suspend());
     callbacks.onSuspend?.(incoming.meta);
   }
@@ -209,7 +238,9 @@ export function createReceiver(
     const incoming = current;
     if (!incoming) return;
     incoming.received += data.byteLength;
-    enqueue(incoming, (store) => store.write(data));
+    incoming.pending.push(data);
+    incoming.pendingBytes += data.byteLength;
+    if (incoming.pendingBytes >= batchBytes) flush(incoming);
     callbacks.onProgress(incoming.meta, incoming.received);
     completeIfDone(incoming);
   }

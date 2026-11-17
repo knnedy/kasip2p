@@ -139,6 +139,8 @@ describe("sendFile + createReceiver", () => {
     const { handle: receive } = createReceiver(
       { onStart: vi.fn(), onProgress: vi.fn(), onComplete },
       slowStore,
+      () => {},
+      1, // one write per chunk, so ordering is observable
     );
     receive(JSON.stringify({ type: "file-meta", transferId: "t", name: "x", size: 5, mimeType: "", totalChunks: 5 }));
     for (let i = 0; i < 5; i++) receive(new Uint8Array([i]).buffer);
@@ -353,5 +355,73 @@ describe("createAcceptRegistry", () => {
     accepts.rejectAll("data channel closed");
     await expect(a).rejects.toThrow("data channel closed");
     await expect(b).rejects.toThrow("data channel closed");
+  });
+});
+
+describe("batched writes", () => {
+  const MB = 1024 * 1024;
+
+  function recordingStore(events: string[], bytes?: number[]): CreateStore {
+    return async (m) => ({
+      offset: 0,
+      async write(chunk) {
+        events.push(`write:${chunk.byteLength / MB}`);
+        if (bytes) for (const b of new Uint8Array(chunk)) bytes.push(b);
+      },
+      finish: async () => {
+        events.push("finish");
+        return new File([], m.name);
+      },
+      suspend: async () => {
+        events.push("suspend");
+      },
+      abort: async () => {},
+    });
+  }
+
+  it("coalesces chunks into batch-sized writes and flushes the tail on completion", async () => {
+    const events: string[] = [];
+    const onComplete = vi.fn();
+    const { handle } = createReceiver(
+      { onStart: vi.fn(), onProgress: vi.fn(), onComplete },
+      recordingStore(events),
+      () => {},
+      4 * MB,
+    );
+    handle(meta("t", 10 * MB));
+    for (let i = 0; i < 10; i++) handle(new ArrayBuffer(MB));
+    await vi.waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
+    expect(events).toEqual(["write:4", "write:4", "write:2", "finish"]);
+  });
+
+  it("keeps bytes in order across batch boundaries", async () => {
+    const events: string[] = [];
+    const bytes: number[] = [];
+    const onComplete = vi.fn();
+    const { handle } = createReceiver(
+      { onStart: vi.fn(), onProgress: vi.fn(), onComplete },
+      recordingStore(events, bytes),
+      () => {},
+      3,
+    );
+    handle(meta("t", 7));
+    for (const part of [[0, 1], [2, 3], [4], [5, 6]]) handle(new Uint8Array(part).buffer);
+    await vi.waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
+    expect(bytes).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it("flushes buffered bytes before suspending so the resume offset is exact", async () => {
+    const events: string[] = [];
+    const receiver = createReceiver(
+      { onStart: vi.fn(), onProgress: vi.fn(), onComplete: vi.fn() },
+      recordingStore(events),
+      () => {},
+      4 * MB,
+    );
+    receiver.handle(meta("t", 10 * MB));
+    for (let i = 0; i < 3; i++) receiver.handle(new ArrayBuffer(MB));
+    receiver.suspend();
+    await vi.waitFor(() => expect(events).toContain("suspend"));
+    expect(events).toEqual(["write:3", "suspend"]);
   });
 });
