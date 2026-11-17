@@ -45,19 +45,18 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 - [x] 16. feat(web): send files through a per-peer queue
 - [x] 17. feat(web): pause, resume and cancel transfers
 - [x] 18. feat(web): retry failed sends (two-device check)
-- [ ] 19. feat(shared): add folder paths to file-meta
+- [x] 19. feat(shared): add folder paths to file-meta
 - [ ] 20. feat(web): send folders (fixes stuck folder drop; hidden on phones)
 - [ ] 21. feat(web): receive folders as a streamed zip download (two-device check)
 
 ## Next 3 steps
 
-1. feat(shared): add folder paths to file-meta
-2. feat(web): send folders
-3. feat(web): receive folders as a streamed zip download
+1. feat(web): send folders
+2. feat(web): receive folders as a streamed zip download
 
 ## Half-done files
 
-- phase A+B two-device check pending; if both sides pause, the receiver's resume shows 'resumed' until the sender also resumes (display only); hold TS 7 / web ESLint 10; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
+- device test of steps 1-18 pending; hold TS 7 / web ESLint 10; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
 
 ## Stage 2 (done, merged)
 

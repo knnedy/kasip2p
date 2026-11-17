@@ -14,6 +14,49 @@ describe("parsePeerMessage", () => {
     expect(parsePeerMessage(JSON.stringify(meta))).toEqual(meta);
   });
 
+  it("parses a file that belongs to a folder", () => {
+    const meta = {
+      type: "file-meta",
+      transferId: "t1",
+      name: "b.txt",
+      size: 3,
+      mimeType: "",
+      totalChunks: 1,
+      folder: { id: "f1", name: "photos", path: "photos/2024/b.txt", index: 0, count: 2 },
+    };
+    expect(parsePeerMessage(JSON.stringify(meta))).toEqual(meta);
+  });
+
+  it("rejects folder paths that could escape the folder", () => {
+    const withPath = (path: string) =>
+      JSON.stringify({
+        type: "file-meta",
+        transferId: "t1",
+        name: "b",
+        size: 0,
+        mimeType: "",
+        totalChunks: 0,
+        folder: { id: "f1", name: "photos", path, index: 0, count: 1 },
+      });
+    for (const bad of ["../b", "/etc/b", "a//b", "a\\b", "a/./b", "C:/b", "a/"]) {
+      expect(parsePeerMessage(withPath(bad)), bad).toBeNull();
+    }
+    expect(parsePeerMessage(withPath("photos/b"))).not.toBeNull();
+  });
+
+  it("rejects a folder index outside its count", () => {
+    const meta = {
+      type: "file-meta",
+      transferId: "t1",
+      name: "b",
+      size: 0,
+      mimeType: "",
+      totalChunks: 0,
+      folder: { id: "f1", name: "photos", path: "photos/b", index: 2, count: 2 },
+    };
+    expect(parsePeerMessage(JSON.stringify(meta))).toBeNull();
+  });
+
   it("parses file-accept and rejects a negative offset", () => {
     const accept = { type: "file-accept", transferId: "t1", offset: 1024 };
     expect(parsePeerMessage(JSON.stringify(accept))).toEqual(accept);

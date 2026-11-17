@@ -1,6 +1,31 @@
 import { z } from "zod";
 
 // Control messages sent as strings over the RTCDataChannel; file bytes go as binary.
+// Relative, forward-slash path; no empty, "." or ".." segments and no drive letters.
+const relativePathSchema = z
+  .string()
+  .min(1)
+  .max(1024)
+  .refine(
+    (p) =>
+      !p.includes("\\") &&
+      !/^[a-zA-Z]:/.test(p) &&
+      p.split("/").every((seg) => seg !== "" && seg !== "." && seg !== ".."),
+    "unsafe path",
+  );
+
+// Set when the file is one of a folder's files, sent in order 0..count-1.
+export const folderPartSchema = z
+  .object({
+    id: z.string().min(1).max(64),
+    name: z.string().min(1).max(255),
+    path: relativePathSchema,
+    index: z.number().int().min(0),
+    count: z.number().int().min(1).max(100_000),
+  })
+  .refine((f) => f.index < f.count, "index out of range");
+export type FolderPart = z.infer<typeof folderPartSchema>;
+
 export const fileMetaSchema = z.object({
   type: z.literal("file-meta"),
   transferId: z.string().min(1).max(64),
@@ -8,6 +33,7 @@ export const fileMetaSchema = z.object({
   size: z.number().int().min(0),
   mimeType: z.string().max(255),
   totalChunks: z.number().int().min(0),
+  folder: folderPartSchema.optional(),
 });
 export type FileMeta = z.infer<typeof fileMetaSchema>;
 
