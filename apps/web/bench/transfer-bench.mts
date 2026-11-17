@@ -155,7 +155,7 @@ async function main() {
 
     const downloadStarted = receiver.waitForEvent("download", { timeout: 10 * 60_000 });
     const t0 = performance.now();
-    await sender.locator('input[type="file"]').setInputFiles(file);
+    await sender.locator('input[type="file"][multiple]').setInputFiles(file);
     const download = await downloadStarted;
     const tFirst = performance.now();
     const savedPath = await download.path();

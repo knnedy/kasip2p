@@ -23,6 +23,7 @@ import { sendWithRetry, TransferCancelled } from "@/lib/transfer/retry";
 import { generateId } from "@/lib/utils";
 import { createSendQueue } from "@/lib/transfer/send-queue";
 import { createPauseGate } from "@/lib/transfer/pause-gate";
+import type { Outgoing } from "@/lib/transfer/folders";
 
 const REOPEN_TIMEOUT_MS = 30_000;
 
@@ -187,7 +188,7 @@ export function useWebRTC(
   // One file at a time per device; bound to the latest sendOne below.
   const [queue] = useState(() => createSendQueue());
 
-  async function sendOne(targetId: string, file: File) {
+  async function sendOne(targetId: string, { file, folder }: Outgoing) {
     const transferId = generateId();
     dispatch({
       type: "started",
@@ -222,12 +223,15 @@ export function useWebRTC(
             controller.signal,
             undefined,
             () => gate.wait(),
+            folder,
           ),
       );
     } catch (err) {
       progress.finish(transferId);
       const reason = err instanceof Error ? err.message : String(err);
-      failedFiles.set(transferId, { peerId: targetId, file });
+      // a folder arrives as one zip, so a failed file ends the folder; send it again whole
+      if (folder) queue.removeFolder(folder.id);
+      else failedFiles.set(transferId, { peerId: targetId, file });
       dispatch({ type: "failed", transferId, reason });
       return;
     } finally {
@@ -302,14 +306,14 @@ export function useWebRTC(
     const failed = failedFiles.get(transferId);
     if (!failed) return;
     dismiss(transferId);
-    queue.add(failed.peerId, [failed.file]);
+    queue.add(failed.peerId, [{ file: failed.file }]);
   }
 
   useEffect(() => {
     queue.bind(sendOne);
   });
 
-  const send = (targetId: string, files: File[]) => queue.add(targetId, files);
+  const send = (targetId: string, outgoing: Outgoing[]) => queue.add(targetId, outgoing);
 
   return { transfers, failedFor, retry, dismiss, queue, initiate, send, control, disconnect };
 }

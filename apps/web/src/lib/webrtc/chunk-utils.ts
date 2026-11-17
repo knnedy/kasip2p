@@ -2,6 +2,7 @@ import {
   parsePeerMessage,
   type FileAccept,
   type FileMeta,
+  type FolderPart,
   type PeerMessage,
 } from "@kasip2p/shared";
 import { memoryStore, type CreateStore, type IncomingFileStore } from "@/lib/transfer/file-store";
@@ -72,6 +73,7 @@ export async function sendFile(
   signal?: AbortSignal, // aborted when either side cancels; rejects with its reason
   readBlockSize = READ_BLOCK_SIZE,
   gate?: () => Promise<void>, // resolves while unpaused; checked before each chunk
+  folder?: FolderPart,
 ) {
   sink.bufferedAmountLowThreshold = LOW_WATER_MARK;
   const accepted = waitForAccept(transferId); // registered before file-meta goes out
@@ -82,6 +84,7 @@ export async function sendFile(
     size: file.size,
     mimeType: file.type,
     totalChunks: Math.ceil(file.size / chunkSize),
+    ...(folder && { folder }),
   };
   sink.send(JSON.stringify(meta));
 

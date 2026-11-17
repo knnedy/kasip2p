@@ -1,12 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSendQueue } from "./send-queue";
 
-const file = (name: string) => new File(["x"], name);
+const file = (name: string) => ({ file: new File(["x"], name) });
+const inFolder = (name: string, index: number, count: number) => ({
+  file: new File(["x"], name),
+  folder: { id: "f", name: "dir", path: `dir/${name}`, index, count },
+});
 
 function deferredSend() {
   const calls: { name: string; peerId: string; finish(ok?: boolean): void }[] = [];
   const send = vi.fn(
-    (peerId: string, f: File) =>
+    (peerId: string, { file: f }: { file: File }) =>
       new Promise<void>((resolve, reject) =>
         calls.push({ name: f.name, peerId, finish: (ok = true) => (ok ? resolve() : reject(new Error("x"))) }),
       ),
@@ -77,5 +81,21 @@ describe("send queue", () => {
     await tick();
     expect(queue.snapshot("bob")).toEqual([]);
     expect(listener.mock.calls.length).toBeGreaterThanOrEqual(3); // added, sending, done
+  });
+
+  it("keeps folder files in order: no reordering, and removing drops the whole folder", async () => {
+    const { send, calls } = deferredSend();
+    const queue = createSendQueue(send);
+    queue.add("bob", [inFolder("a", 0, 3), inFolder("b", 1, 3), inFolder("c", 2, 3), file("z")]);
+    await tick();
+    const [, b, c, z] = queue.snapshot("bob");
+    queue.move(c!.id, -1);
+    queue.move(z!.id, -2);
+    expect(queue.snapshot("bob").map((i) => i.file.name)).toEqual(["a", "b", "c", "z"]);
+    queue.remove(b!.id);
+    expect(queue.snapshot("bob").map((i) => i.file.name)).toEqual(["a", "z"]);
+    calls[0]!.finish();
+    await tick();
+    expect(calls.map((x) => x.name)).toEqual(["a", "z"]);
   });
 });

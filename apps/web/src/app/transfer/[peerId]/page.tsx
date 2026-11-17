@@ -7,11 +7,28 @@ import { useWebRTC } from "@/hooks/use-webrtc";
 import { useConnectionInfo } from "@/hooks/use-connection-info";
 import { QueuedFiles } from "@/components/queued-files";
 import { FailedTransfers } from "@/components/failed-transfers";
+import {
+  collectEntries,
+  pickedFromInput,
+  planOutgoing,
+  type EntryLike,
+} from "@/lib/transfer/folders";
+import { useCanPickFolders } from "@/hooks/use-can-pick-folders";
 import type { ConnectionInfo } from "@/lib/webrtc/connection-info";
 import { usePeers } from "@/hooks/use-peers";
 import { getTransfers } from "@/lib/store/idb";
 import { pairedPeers, signalingClient } from "@/lib/signaling/ws-client";
-import { ArrowLeft, Upload, Zap, CheckCircle, Clock, Pause, Play, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Upload,
+  Zap,
+  CheckCircle,
+  Clock,
+  FolderUp,
+  Pause,
+  Play,
+  X,
+} from "lucide-react";
 import { OsIcon } from "@/components/os-icon";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -54,6 +71,7 @@ export default function TransferPage() {
 
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const initiated = useRef(false);
 
   // initiate is excluded from deps — it's a stable function reference
@@ -78,15 +96,28 @@ export default function TransferPage() {
     queryFn: getTransfers,
   });
 
-  function handleFiles(files: FileList | null) {
-    if (!files) return;
-    send(targetId, Array.from(files));
+  const canPickFolders = useCanPickFolders();
+
+  // Picker input: folder picks carry webkitRelativePath. Reset so a re-pick fires.
+  function handlePicked(input: HTMLInputElement) {
+    if (input.files?.length) send(targetId, planOutgoing(pickedFromInput(input.files)));
+    input.value = "";
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setIsDragging(false);
-    handleFiles(e.dataTransfer.files);
+    // entries must be taken during the event; dropped folders are walked after
+    const entries = Array.from(e.dataTransfer.items)
+      .map((item) => item.webkitGetAsEntry?.())
+      .filter((entry): entry is FileSystemEntry => !!entry);
+    if (!entries.some((entry) => entry.isDirectory)) {
+      send(targetId, Array.from(e.dataTransfer.files).map((file) => ({ file })));
+      return;
+    }
+    void collectEntries(entries as unknown as EntryLike[])
+      .then((picked) => send(targetId, planOutgoing(picked)))
+      .catch((err) => console.warn("could not read the dropped folder", err));
   }
 
   const activeTransfers = transfers;
@@ -158,15 +189,34 @@ export default function TransferPage() {
               {isDragging ? "Drop to send" : "Drag files here"}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              or click to browse · any file type · any size
+              {canPickFolders ? "files or folders" : "or tap to browse"} · any type · any size
             </p>
           </div>
+          {canPickFolders && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                folderInputRef.current?.click();
+              }}
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted">
+              <FolderUp className="h-3.5 w-3.5" />
+              Send a folder
+            </button>
+          )}
           <input
             ref={fileInputRef}
             type="file"
             multiple
             className="hidden"
-            onChange={(e) => handleFiles(e.target.files)}
+            onChange={(e) => handlePicked(e.currentTarget)}
+          />
+          <input
+            ref={folderInputRef}
+            type="file"
+            className="hidden"
+            {...{ webkitdirectory: "" }}
+            onChange={(e) => handlePicked(e.currentTarget)}
           />
         </div>
 
