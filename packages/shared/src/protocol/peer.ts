@@ -19,9 +19,32 @@ export const fileAcceptSchema = z.object({
 });
 export type FileAccept = z.infer<typeof fileAcceptSchema>;
 
+// Either side may pause or cancel; resume is sent by whoever paused.
+const transferIdSchema = z.string().min(1).max(64);
+export const transferPauseSchema = z.object({
+  type: z.literal("transfer-pause"),
+  transferId: transferIdSchema,
+});
+export const transferResumeSchema = z.object({
+  type: z.literal("transfer-resume"),
+  transferId: transferIdSchema,
+});
+export const transferCancelSchema = z.object({
+  type: z.literal("transfer-cancel"),
+  transferId: transferIdSchema,
+  reason: z.string().max(200).optional(),
+});
+export type TransferControl =
+  | z.infer<typeof transferPauseSchema>
+  | z.infer<typeof transferResumeSchema>
+  | z.infer<typeof transferCancelSchema>;
+
 export const peerMessageSchema = z.discriminatedUnion("type", [
   fileMetaSchema,
   fileAcceptSchema,
+  transferPauseSchema,
+  transferResumeSchema,
+  transferCancelSchema,
 ]);
 export type PeerMessage = z.infer<typeof peerMessageSchema>;
 

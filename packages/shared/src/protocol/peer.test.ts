@@ -20,6 +20,25 @@ describe("parsePeerMessage", () => {
     expect(parsePeerMessage(JSON.stringify({ ...accept, offset: -1 }))).toBeNull();
   });
 
+  it("parses pause, resume and cancel controls for a transfer", () => {
+    for (const type of ["transfer-pause", "transfer-resume", "transfer-cancel"]) {
+      const msg = { type, transferId: "t1" };
+      expect(parsePeerMessage(JSON.stringify(msg))).toEqual(msg);
+    }
+  });
+
+  it("carries an optional, bounded reason on cancel", () => {
+    const msg = { type: "transfer-cancel", transferId: "t1", reason: "download cancelled" };
+    expect(parsePeerMessage(JSON.stringify(msg))).toEqual(msg);
+    expect(
+      parsePeerMessage(JSON.stringify({ ...msg, reason: "x".repeat(201) })),
+    ).toBeNull();
+  });
+
+  it("rejects a control without a transfer id", () => {
+    expect(parsePeerMessage(JSON.stringify({ type: "transfer-pause" }))).toBeNull();
+  });
+
   it("returns null for garbage or unknown types", () => {
     expect(parsePeerMessage("not json")).toBeNull();
     expect(parsePeerMessage(JSON.stringify({ type: "nope" }))).toBeNull();
