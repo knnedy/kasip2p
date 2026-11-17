@@ -13,6 +13,7 @@ import { activeTransfers, transfersReducer } from "@/lib/transfer/machine";
 import { createProgressThrottle } from "@/lib/transfer/progress-throttle";
 import { createIncomingStore, removeIncoming } from "@/lib/transfer/file-store";
 import { saveTransfer } from "@/lib/store/idb";
+import { peerNames } from "@/lib/signaling/ws-client";
 import { sendWithRetry } from "@/lib/transfer/retry";
 import { generateId } from "@/lib/utils";
 
@@ -78,7 +79,7 @@ export function useWebRTC(
                 mimeType: file.type,
                 direction: "received",
                 peerId: remoteId,
-                peerName: remoteId,
+                peerName: peerNames.get(remoteId),
                 completedAt: Date.now(),
               },
               file,
@@ -190,7 +191,7 @@ export function useWebRTC(
       mimeType: file.type,
       direction: "sent",
       peerId: targetId,
-      peerName: targetId,
+      peerName: peerNames.get(targetId),
       completedAt: Date.now(),
     });
     dispatch({ type: "completed", transferId, at: Date.now() });

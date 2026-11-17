@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePeers } from "@/hooks/use-peers";
 import type { PeerEntry } from "@/hooks/use-peers";
 import { OsIcon } from "@/components/os-icon";
+import { DeviceNameEditor } from "@/components/device-name-editor";
 import { Zap, Shield, Wifi } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getOrCreatePeerId } from "@/lib/peer-id";
@@ -209,6 +210,7 @@ export default function Home() {
               : `${peers.length} device${peers.length > 1 ? "s" : ""} found`}
           </span>
         </div>
+        <DeviceNameEditor />
       </div>
 
       <div className="relative z-10 w-80 h-80 md:w-110 md:h-110">

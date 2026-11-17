@@ -1,6 +1,8 @@
 import { getOrCreatePeerSecret, resetPeerIdentity } from "@/lib/peer-id";
 import { SignalingClient, type SocketLike } from "./client";
 import { getDeviceMeta } from "./device-meta";
+import { createDeviceNameStore } from "./device-name";
+import { createPeerNames } from "./peer-names";
 
 export type { SignalingStatus } from "./client";
 
@@ -29,12 +31,21 @@ function browserSocket(url: string): SocketLike {
   return socket;
 }
 
+// Accessed lazily so SSR (no localStorage) falls through to the store's catch.
+export const deviceName = createDeviceNameStore(
+  {
+    getItem: (k) => window.localStorage.getItem(k),
+    setItem: (k, v) => window.localStorage.setItem(k, v),
+  },
+  () => getDeviceMeta("").name, // only read in the browser
+);
+
 export const signalingClient = new SignalingClient({
   url: getSignalUrl,
   createSocket: browserSocket,
   registerMessage: (peerId) => ({
     type: "register",
-    meta: getDeviceMeta(peerId),
+    meta: { ...getDeviceMeta(peerId), name: deviceName.get() },
     secret: getOrCreatePeerSecret(),
   }),
   // an HTTP hit spins up a sleeping Render instance faster than WS retries alone
@@ -48,3 +59,15 @@ export const signalingClient = new SignalingClient({
     window.location.reload();
   },
 });
+
+export const peerNames = createPeerNames();
+signalingClient.onMessage((msg) => {
+  if (msg.type === "peer-list") peerNames.update(msg.peers);
+});
+
+// Saves locally and tells the network; returns null for an invalid name.
+export function renameDevice(raw: string): string | null {
+  const name = deviceName.set(raw);
+  if (name) signalingClient.send({ type: "update-meta", name });
+  return name;
+}

@@ -17,7 +17,7 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 
 - [x] 1. feat(shared): add update-meta signaling message
 - [x] 2. feat(signaling): apply name updates and rebroadcast peers
-- [ ] 3. feat(web): rename this device (two-device check)
+- [x] 3. feat(web): rename this device (two-device check)
 - [ ] 4. feat(web): send files through a per-peer queue
 - [ ] 5. feat(shared): add transfer control peer messages
 - [ ] 6. feat(web): pause, resume and cancel transfers
@@ -28,13 +28,13 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 
 ## Next 3 steps
 
-1. feat(web): rename this device
-2. feat(web): send files through a per-peer queue
-3. feat(shared): add transfer control peer messages
+1. feat(web): send files through a per-peer queue
+2. feat(shared): add transfer control peer messages
+3. feat(web): pause, resume and cancel transfers
 
 ## Half-done files
 
-- none; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF; step 4 scopes accept waiters per peer
+- two-device rename check pending; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF; step 4 scopes accept waiters per peer
 
 ## Stage 2 (done, merged)
 
