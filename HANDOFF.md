@@ -1,7 +1,7 @@
 # HANDOFF
 
 Working log for the staged refactor. Stages 1–3 merged into `main` (e8a1a82).
-Current: Stage 4 (UI/UX) on `feat/stage4-polish`.
+Current: Stage 4 done; next is the pinned phone send slowdown.
 
 ## Stage 4 decisions
 
@@ -28,7 +28,7 @@ Current: Stage 4 (UI/UX) on `feat/stage4-polish`.
 - [x] 26. feat(web): redesign pairing
 - [x] 27. feat(web): redesign the transfer page around the wire
 - [x] 28. style(web): motion pass with reduced-motion support
-- [ ] 29. fix(web): accessibility pass, then merge (before/after screenshots)
+- [x] 29. fix(web): accessibility pass, then merge (before/after screenshots)
 
 ## Stage 3 decisions
 
@@ -78,11 +78,11 @@ Current: Stage 4 (UI/UX) on `feat/stage4-polish`.
 
 ## Next 3 steps
 
-1. fix(web): accessibility pass, then merge (before/after screenshots)
+1. Stage wrap-up: summarize and ask before next stage
 
 ## Half-done files
 
-- accessibility pass + before/after screenshots + merge next; components/ui/button.tsx is unused shadcn code; pinned phone slowdown; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
+- Stage 4 complete; next: diagnose pinned phone→laptop slowdown (3 → 0.2 MB/s); light theme is a possible follow-up; components/ui/button.tsx is unused; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
 
 ## Stage 2 (done, merged)
 

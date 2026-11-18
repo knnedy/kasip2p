@@ -40,7 +40,7 @@ export function DeviceNameEditor() {
           type="button"
           onClick={() => setDraft(name)}
           aria-label="Rename this device"
-          className="press rounded-md p-1 hover:text-foreground"
+          className="press -my-3 flex size-11 items-center justify-center rounded-full hover:text-foreground"
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
@@ -72,12 +72,12 @@ export function DeviceNameEditor() {
             setInvalid(false);
           }}
           onKeyDown={(e) => e.key === "Escape" && cancel()}
-          className="w-48 rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="w-48 rounded-md border border-muted-foreground/60 bg-card px-2 py-1.5 text-sm text-foreground outline-none focus-visible:border-you"
         />
         <button
           type="submit"
           aria-label="Save name"
-          className="press rounded-md p-1 text-muted-foreground hover:text-foreground"
+          className="press -my-3 flex size-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
         >
           <Check className="h-3.5 w-3.5" />
         </button>
@@ -85,7 +85,7 @@ export function DeviceNameEditor() {
           type="button"
           onClick={cancel}
           aria-label="Cancel rename"
-          className="press rounded-md p-1 text-muted-foreground hover:text-foreground"
+          className="press -my-3 flex size-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" />
         </button>

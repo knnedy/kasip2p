@@ -76,9 +76,9 @@ function ActiveTransfer({
           className={cn(
             "flex size-9 shrink-0 items-center justify-center rounded-full",
             sending ? "bg-you/12 text-you" : "bg-them/12 text-them",
-          )}
-          aria-label={sending ? "Sending" : "Receiving"}>
+          )}>
           {sending ? <ArrowUp className="size-4" /> : <ArrowDown className="size-4" />}
+          <span className="sr-only">{sending ? "Sending" : "Receiving"}</span>
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium text-foreground">{t.fileName}</p>
@@ -224,14 +224,27 @@ export default function TransferPage() {
         </p>
       </TopBar>
 
-      <section className="flex flex-col gap-5" aria-label={`Connection to ${peerName}`}>
+      <section className="flex flex-col gap-5" aria-labelledby="transfer-heading">
+        <h1 id="transfer-heading" className="sr-only">
+          Send files to {peerName}
+        </h1>
+        {/* announce state changes only; the speed itself updates too often to read out */}
+        <p className="sr-only" aria-live="polite">
+          {summary.flow === "idle"
+            ? `Ready to send to ${peerName}`
+            : summary.paused
+              ? "Paused"
+              : summary.flow === "receive"
+                ? `Receiving from ${peerName}`
+                : `Sending to ${peerName}`}
+        </p>
         <Wire
           you={you}
           them={{ name: peerName, os: targetPeer?.meta.os }}
           route={connection?.route ?? "unknown"}
           summary={summary}
         />
-        <div aria-live="polite">
+        <div aria-hidden="true">
           {summary.flow === "idle" ? (
             <p className="font-display text-2xl font-bold tracking-tight text-balance font-stretch-expanded text-foreground">
               Ready to send to {peerName}
@@ -345,11 +358,8 @@ export default function TransferPage() {
                   key={record.id}
                   className="flex items-center gap-3 border-b border-border py-3 last:border-b-0">
                   <span className={cn("shrink-0", sent ? "text-you" : "text-them")}>
-                    {sent ? (
-                      <ArrowUp className="size-4" aria-label="Sent" />
-                    ) : (
-                      <ArrowDown className="size-4" aria-label="Received" />
-                    )}
+                    {sent ? <ArrowUp className="size-4" /> : <ArrowDown className="size-4" />}
+                    <span className="sr-only">{sent ? "Sent" : "Received"}</span>
                   </span>
                   <p className="min-w-0 flex-1 truncate text-foreground">{record.fileName}</p>
                   <p className="tabular shrink-0 font-mono text-xs text-muted-foreground">

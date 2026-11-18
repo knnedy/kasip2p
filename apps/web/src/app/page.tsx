@@ -28,7 +28,7 @@ function DeviceRow({ peer, paired, onOpen }: { peer: PeerEntry; paired: boolean;
       <button
         type="button"
         onClick={onOpen}
-        className="press group flex min-h-16 w-full items-center gap-4 rounded-2xl border border-border bg-card px-4 py-3 text-left hover:border-them/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+        className="press group flex min-h-16 w-full items-center gap-4 rounded-2xl border border-border bg-card px-4 py-3 text-left hover:border-them/40">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-them/12 text-them">
           <OsIcon os={peer.meta.os} size={18} />
         </span>

@@ -212,7 +212,7 @@ export default function PairPage() {
                 onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
                 className={cn(
                   "h-16 w-full rounded-2xl border bg-card text-center font-mono text-3xl font-semibold tracking-[0.5em] text-foreground outline-none transition-colors placeholder:text-muted-foreground/40 focus:border-you",
-                  pinError ? "border-destructive" : "border-border",
+                  pinError ? "border-destructive" : "border-muted-foreground/60",
                 )}
               />
               {pinError && (
