@@ -38,7 +38,7 @@ Current: phone send slowdown on `fix/phone-send-speed` (branched from unmerged `
 - [x] 34. fix(web): keep both sides' pauses when both devices pause
 - [x] 35. chore(web): remove unused shadcn button
 - [x] 36. fix(web): keep the screen on during transfers (bench: --phone, --cpu, per-quarter speed)
-- [ ] 37. fix(web): show current speed, not the average since start
+- [x] 37. fix(web): show current speed, not the average since start
 
 ## Stage 3 decisions
 
@@ -88,11 +88,11 @@ Current: phone send slowdown on `fix/phone-send-speed` (branched from unmerged `
 
 ## Next 3 steps
 
-1. fix(web): show current speed, not the average since start
+1. Stage wrap-up: summarize and ask before next stage
 
 ## Half-done files
 
-- slowdown not reproducible on one machine (phone layout, CPU 20x: no collapse); top suspect: phone screen off freezes the page; device retest needed after 37; Render dashboard: set ALLOWED_ORIGINS
+- needs device retest: phone→laptop 133MB; if speed still collapses with screen on, next suspect is Android reading the picked video (try a file from Downloads); chore/cleanup + this branch unmerged; Render dashboard: set ALLOWED_ORIGINS
 
 ## Stage 2 (done, merged)
 

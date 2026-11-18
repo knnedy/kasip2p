@@ -47,6 +47,29 @@ describe("transfersReducer", () => {
     expect(activeTransfers(state)[0]?.speedMBps).toBe(1);
   });
 
+  // a fast first second, then a steady 1 MB/s: 10 MB at 2s, 11..16 MB at 3s..8s
+  const MiB = 1024 * 1024;
+  const slowedDown = () =>
+    run(
+      { ...started, info: { ...info, totalBytes: 100 * MiB } },
+      { type: "progressed", transferId: "t1", transferredBytes: 10 * MiB, at: 2_000 },
+      ...[11, 12, 13, 14, 15, 16].map(
+        (mb, i): TransferEvent => ({ type: "progressed", transferId: "t1", transferredBytes: mb * MiB, at: 3_000 + i * 1_000 }),
+      ),
+    );
+
+  it("reports the current speed, not the average since the start", () => {
+    expect(activeTransfers(slowedDown(), undefined, 8_000)[0]?.speedMBps).toBe(1);
+  });
+
+  it("ignores a clock that lags behind the last update", () => {
+    expect(activeTransfers(slowedDown(), undefined, 0)[0]?.speedMBps).toBe(1);
+  });
+
+  it("drops to zero once bytes stop arriving", () => {
+    expect(activeTransfers(slowedDown(), undefined, 12_000)[0]?.speedMBps).toBe(0);
+  });
+
   it("never reports progress going backwards or past the total", () => {
     const state = run(
       started,

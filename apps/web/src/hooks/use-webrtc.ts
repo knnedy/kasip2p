@@ -283,8 +283,15 @@ export function useWebRTC(
     peerManager.close(peerId);
   }
 
-  const transfers = useMemo(() => activeTransfers(state), [state]);
-  const busy = transfers.length > 0;
+  // ticks while anything is active, so a stalled transfer's speed falls to 0
+  const [now, setNow] = useState(() => Date.now());
+  const busy = Object.values(state).some((t) => t.status === "active");
+  useEffect(() => {
+    if (!busy) return;
+    const timer = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(timer);
+  }, [busy]);
+  const transfers = useMemo(() => activeTransfers(state, undefined, now), [state, now]);
 
   const wakeLock = useRef<ReturnType<typeof createWakeLock> | null>(null);
   useEffect(() => {
@@ -303,7 +310,7 @@ export function useWebRTC(
     wakeLock.current?.set(busy);
   }, [busy]);
 
-  const activeFor = (peerId: string) => activeTransfers(state, peerId);
+  const activeFor = (peerId: string) => activeTransfers(state, peerId, now);
 
   const failedFor = (peerId: string) =>
     failedTransfers(state, peerId).map((f) => ({ ...f, canRetry: failedFiles.has(f.transferId) }));

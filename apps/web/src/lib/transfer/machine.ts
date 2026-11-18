@@ -13,7 +13,7 @@ export type Transfer =
       status: "active";
       info: TransferInfo;
       transferredBytes: number;
-      baseBytes: number; // already held when this attempt started (resume)
+      recent: Sample[]; // progress over the last few seconds, for the current speed
       paused: { local: boolean; remote: boolean }; // each side lifts only its own
       startedAt: number;
       updatedAt: number;
@@ -26,6 +26,21 @@ export type Transfer =
       startedAt: number;
       reason: string;
     };
+
+interface Sample {
+  at: number;
+  bytes: number;
+}
+
+// Speed is measured over this window: long enough to smooth, short enough to show a stall.
+export const SPEED_WINDOW_MS = 3_000;
+
+// Samples inside the window, plus the last one before it as the starting point.
+function keepRecent(samples: Sample[], now: number): Sample[] {
+  const firstInside = samples.findIndex((s) => s.at > now - SPEED_WINDOW_MS);
+  if (firstInside === -1) return samples.slice(-1); // stalled: nothing moved in the window
+  return samples.slice(Math.max(0, firstInside - 1));
+}
 
 export type TransfersState = Readonly<Record<string, Transfer>>;
 
@@ -50,7 +65,7 @@ export function transfersReducer(
       status: "active",
       info: event.info,
       transferredBytes: event.offset ?? 0,
-      baseBytes: event.offset ?? 0,
+      recent: [{ at: event.at, bytes: event.offset ?? 0 }],
       paused: { local: false, remote: false },
       startedAt: event.at,
       updatedAt: event.at,
@@ -73,7 +88,12 @@ export function transfersReducer(
     case "progressed": {
       const bytes = Math.min(event.transferredBytes, current.info.totalBytes);
       if (bytes < current.transferredBytes) return state;
-      next = { ...current, transferredBytes: bytes, updatedAt: event.at };
+      next = {
+        ...current,
+        transferredBytes: bytes,
+        updatedAt: event.at,
+        recent: keepRecent([...current.recent, { at: event.at, bytes }], event.at),
+      };
       break;
     }
     case "paused":
@@ -105,17 +125,22 @@ function pausedBy({ local, remote }: { local: boolean; remote: boolean }) {
   return local && remote ? "both" : local ? "local" : remote ? "remote" : null;
 }
 
+// Pass the clock so a stalled transfer reads 0; a clock behind the last update is ignored.
 export function toProgress(
   t: Extract<Transfer, { status: "active" }>,
+  clock?: number,
 ): TransferProgress {
-  const seconds = (t.updatedAt - t.startedAt) / 1000;
+  const now = Math.max(clock ?? 0, t.updatedAt);
+  const window = keepRecent(t.recent, now);
+  const from = window[0]!;
+  const seconds = (now - from.at) / 1000;
+  const moved = t.transferredBytes - from.bytes;
   return {
     transferId: t.info.transferId,
     fileName: t.info.fileName,
     totalBytes: t.info.totalBytes,
     transferredBytes: t.transferredBytes,
-    speedMBps:
-      seconds > 0 ? (t.transferredBytes - t.baseBytes) / seconds / 1024 / 1024 : 0,
+    speedMBps: seconds > 0 ? moved / seconds / 1024 / 1024 : 0,
     direction: t.info.direction,
     pausedBy: pausedBy(t.paused),
   };
@@ -124,11 +149,12 @@ export function toProgress(
 export function activeTransfers(
   state: TransfersState,
   peerId?: string,
+  now?: number,
 ): TransferProgress[] {
   return Object.values(state)
     .filter((t) => t.status === "active")
     .filter((t) => peerId === undefined || t.info.peerId === peerId)
-    .map(toProgress);
+    .map((t) => toProgress(t, now));
 }
 
 export interface FailedTransfer {
