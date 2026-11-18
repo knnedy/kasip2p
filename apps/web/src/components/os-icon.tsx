@@ -1,7 +1,7 @@
 import type { OS } from "@kasip2p/shared";
 import { siAndroid, siApple, siLinux, siUbuntu } from "simple-icons";
 
-const ACCENT = "#00d9ff";
+const ACCENT = "var(--you)";
 const NEUTRAL = "#f1f5f9";
 
 const windowsPath =

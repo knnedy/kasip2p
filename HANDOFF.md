@@ -1,7 +1,34 @@
 # HANDOFF
 
-Working log for the staged refactor. Stages 1–2 and Stage 3 steps 1–3 merged into `main` (b021907).
-Current: Stage 3 (features) on `feat/stage3-features`.
+Working log for the staged refactor. Stages 1–3 merged into `main` (e8a1a82).
+Current: Stage 4 (UI/UX) on `feat/stage4-polish`.
+
+## Stage 4 decisions
+
+- direction "Kasi, the direct wire": every connection is drawn as a wire between two ends;
+  cyan (--you) is this device, sodium amber (--them) the other; colour encodes the end and
+  the travel direction encodes send/receive; the route is drawn truthfully (local straight,
+  internet arc, relay with a middle node); paused = dashed and still
+- palette tokens in globals.css (.dark): ink #0b0f14, slate #151b23, line #263040,
+  mist #8a97a8, chalk #e8edf2, you #00d9ff, them #ffb547, error #ff6b5e; dark-only for now
+- type: Archivo expanded (display, sparingly), Hanken Grotesk (body), JetBrains Mono
+  (data), self-hosted by next/font; tabular digits for every number
+- home drops the radar and feature cards: devices first; empty state offers a QR to open
+  the page on the other device
+- motion via emil-design-eng: short ease-out enters, press scale, transform-only progress;
+  the wire's moving bursts are the only ambient motion; reduced motion = static fills
+- pinned: phone→laptop 133MB slowed 3 → 0.2 MB/s in device test; diagnose after Stage 4
+
+## Stage 4 plan
+
+- [x] 22. style(web): Kasi palette and type tokens, no hard-coded colours
+- [ ] 23. feat(web): shared size formatting and plain failure messages
+- [ ] 24. feat(web): wire component for the connection between two devices
+- [ ] 25. feat(web): redesign home around nearby devices
+- [ ] 26. feat(web): redesign pairing
+- [ ] 27. feat(web): redesign the transfer page around the wire
+- [ ] 28. style(web): motion pass with reduced-motion support
+- [ ] 29. fix(web): accessibility pass, then merge (before/after screenshots)
 
 ## Stage 3 decisions
 
@@ -51,11 +78,13 @@ Current: Stage 3 (features) on `feat/stage3-features`.
 
 ## Next 3 steps
 
-1. Stage wrap-up: summarize and ask before next stage
+1. feat(web): shared size formatting and plain failure messages
+2. feat(web): wire component for the connection between two devices
+3. feat(web): redesign home around nearby devices
 
 ## Half-done files
 
-- Stage 3 complete; device test of all steps pending; next: Stage 4 (motion polish with emil-design-eng, tokens for leftover #00d9ff, prefers-reduced-motion); both-sides-paused display quirk; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
+- step 22 swapped colours 1:1; layouts still old until 25-27; pinned phone slowdown; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
 
 ## Stage 2 (done, merged)
 

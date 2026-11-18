@@ -7,9 +7,16 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-hanken);
+  --font-mono: var(--font-jetbrains);
+  --font-display: var(--font-archivo);
+  --font-heading: var(--font-archivo);
+  /* the two ends of every connection: this device and the other one */
+  --color-you: var(--you);
+  --color-them: var(--them);
+  --color-line: var(--line);
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -83,38 +90,42 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* "Kasi" palette: ink night, cyan for this device, sodium amber for the other */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.84 0.14 213); /* cyan #00d9ff equivalent */
-  --accent-foreground: oklch(0.145 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #0b0f14; /* ink */
+  --foreground: #e8edf2; /* chalk */
+  --card: #151b23; /* slate */
+  --card-foreground: #e8edf2;
+  --popover: #151b23;
+  --popover-foreground: #e8edf2;
+  --primary: #00d9ff;
+  --primary-foreground: #0b0f14;
+  --secondary: #1c2430;
+  --secondary-foreground: #e8edf2;
+  --muted: #1c2430;
+  --muted-foreground: #8a97a8; /* mist */
+  --accent: #1c2430;
+  --accent-foreground: #e8edf2;
+  --destructive: #ff6b5e;
+  --border: #263040; /* line */
+  --input: #263040;
+  --ring: #00d9ff;
+  --you: #00d9ff;
+  --them: #ffb547;
+  --line: #263040;
+  --chart-1: #00d9ff;
+  --chart-2: #ffb547;
+  --chart-3: #8a97a8;
+  --chart-4: #263040;
+  --chart-5: #151b23;
+  --sidebar: #151b23;
+  --sidebar-foreground: #e8edf2;
+  --sidebar-primary: #00d9ff;
+  --sidebar-primary-foreground: #0b0f14;
+  --sidebar-accent: #1c2430;
+  --sidebar-accent-foreground: #e8edf2;
+  --sidebar-border: #263040;
+  --sidebar-ring: #00d9ff;
 }
 
 @layer base {
@@ -126,5 +137,21 @@
   }
   html {
     @apply font-sans;
+  }
+  /* sizes, speeds and PINs: fixed-width digits so numbers don't jitter */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Safety net; components also drop their own motion under reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

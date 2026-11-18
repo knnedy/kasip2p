@@ -10,7 +10,7 @@ import { Zap, Shield, Wifi } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getOrCreatePeerId } from "@/lib/peer-id";
 
-const ACCENT = "#00d9ff";
+const ACCENT = "var(--you)";
 const ACCENT_DIM = "rgba(0,217,255,";
 
 function drawRadar(
@@ -190,22 +190,22 @@ export default function Home() {
 
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(0,217,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,217,255,0.03)_1px,transparent_1px)] bg-size-[64px_64px]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(color-mix(in_oklab,var(--you)_3%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_oklab,var(--you)_3%,transparent)_1px,transparent_1px)] bg-size-[64px_64px]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,transparent_40%,var(--background)_100%)]" />
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className="h-125 w-125 rounded-full bg-[#00d9ff]/3 blur-3xl" />
+        <div className="h-125 w-125 rounded-full bg-you/3 blur-3xl" />
       </div>
 
       <div className="relative z-10 mb-10 flex flex-col items-center gap-4">
         <h1 className="text-6xl font-bold tracking-tight text-foreground">
-          Kasi<span className="text-[#00d9ff]">P2P</span>
+          Kasi<span className="text-you">P2P</span>
         </h1>
 
         <p className="max-w-sm text-center text-sm text-muted-foreground">
           Open this page on any device on your network to connect instantly
         </p>
-        <div className="inline-flex items-center gap-2 rounded-full border border-[#00d9ff]/20 bg-[#00d9ff]/5 px-4 py-1.5">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#00d9ff]" />
+        <div className="inline-flex items-center gap-2 rounded-full border border-you/20 bg-you/5 px-4 py-1.5">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-you" />
           <span className="text-xs font-medium text-muted-foreground">
             {peers.length === 0
               ? "scanning your network"
@@ -217,13 +217,13 @@ export default function Home() {
 
       <div className="relative z-10 w-80 h-80 md:w-110 md:h-110">
         <canvas ref={canvasRef} className="h-full w-full rounded-full" />
-        <div className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-[#00d9ff]/15" />
+        <div className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-you/15" />
       </div>
 
       {peers.length > 0 && (
         <div className="relative z-10 mt-10 w-full max-w-md px-4">
           <div className="mb-3 flex items-center gap-2">
-            <Wifi className="h-3.5 w-3.5 text-[#00d9ff]" />
+            <Wifi className="h-3.5 w-3.5 text-you" />
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               Nearby devices
             </p>
@@ -239,9 +239,9 @@ export default function Home() {
                     )
                   }
                   key={peer.meta.peerId}
-                  className="group flex w-full items-center gap-4 rounded-xl border border-[#00d9ff]/10 bg-card px-4 py-3 text-left transition-all duration-200 hover:border-[#00d9ff]/30 hover:bg-card/80"
+                  className="group flex w-full items-center gap-4 rounded-xl border border-you/10 bg-card px-4 py-3 text-left transition-all duration-200 hover:border-you/30 hover:bg-card/80"
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#00d9ff]/20 bg-[#00d9ff]/5">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-you/20 bg-you/5">
                     <OsIcon os={peer.meta.os} size={20} />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -253,9 +253,9 @@ export default function Home() {
                       {isPaired ? "paired" : peer.connectionState}
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-[#00d9ff]/20 bg-[#00d9ff]/5 px-3 py-1.5 transition-all group-hover:border-[#00d9ff]/40 group-hover:bg-[#00d9ff]/10">
-                    <Zap className="h-3 w-3 text-[#00d9ff]" />
-                    <span className="text-xs font-medium text-[#00d9ff]">
+                  <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-you/20 bg-you/5 px-3 py-1.5 transition-all group-hover:border-you/40 group-hover:bg-you/10">
+                    <Zap className="h-3 w-3 text-you" />
+                    <span className="text-xs font-medium text-you">
                       {isPaired ? "Open" : "Connect"}
                     </span>
                   </div>
@@ -284,10 +284,10 @@ export default function Home() {
             ].map(({ icon: Icon, title, desc }) => (
               <div
                 key={title}
-                className="flex flex-col items-center gap-2 rounded-xl border border-[#00d9ff]/10 bg-card px-4 py-5 text-center"
+                className="flex flex-col items-center gap-2 rounded-xl border border-you/10 bg-card px-4 py-5 text-center"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#00d9ff]/10">
-                  <Icon className="h-4 w-4 text-[#00d9ff]" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-you/10">
+                  <Icon className="h-4 w-4 text-you" />
                 </div>
                 <p className="text-sm font-semibold text-foreground">{title}</p>
                 <p className="text-xs text-muted-foreground">{desc}</p>

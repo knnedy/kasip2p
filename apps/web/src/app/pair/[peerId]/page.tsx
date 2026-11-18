@@ -144,7 +144,7 @@ export default function PairPage() {
 
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(0,217,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,217,255,0.03)_1px,transparent_1px)] bg-size-[64px_64px]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(color-mix(in_oklab,var(--you)_3%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_oklab,var(--you)_3%,transparent)_1px,transparent_1px)] bg-size-[64px_64px]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,transparent_40%,var(--background)_100%)]" />
 
       <button
@@ -156,8 +156,8 @@ export default function PairPage() {
 
       <div className="relative z-10 w-full max-w-sm">
         {targetPeer && (
-          <div className="mb-8 flex items-center gap-3 rounded-xl border border-[#00d9ff]/15 bg-card px-4 py-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#00d9ff]/20 bg-[#00d9ff]/5">
+          <div className="mb-8 flex items-center gap-3 rounded-xl border border-you/15 bg-card px-4 py-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-you/20 bg-you/5">
               <OsIcon os={targetPeer.meta.os} size={20} />
             </div>
             <div className="min-w-0 flex-1">
@@ -169,13 +169,13 @@ export default function PairPage() {
               </p>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#00d9ff]" />
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-you" />
               <span className="text-xs text-muted-foreground">Nearby</span>
             </div>
           </div>
         )}
 
-        <div className="rounded-2xl border border-[#00d9ff]/15 bg-card p-6">
+        <div className="rounded-2xl border border-you/15 bg-card p-6">
           {state.status === "showing-pin" && (
             <div className="flex flex-col items-center gap-6">
               <div className="flex flex-col items-center gap-2 text-center">
@@ -187,7 +187,7 @@ export default function PairPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-[#00d9ff]/15 bg-white p-4">
+              <div className="rounded-xl border border-you/15 bg-white p-4">
                 <QRCodeSVG
                   value={qrValue}
                   size={180}
@@ -205,7 +205,7 @@ export default function PairPage() {
                   {pin.split("").map((digit, i) => (
                     <div
                       key={i}
-                      className="flex h-12 w-10 items-center justify-center rounded-xl border border-[#00d9ff]/30 bg-[#00d9ff]/5 text-2xl font-bold text-[#00d9ff]">
+                      className="flex h-12 w-10 items-center justify-center rounded-xl border border-you/30 bg-you/5 text-2xl font-bold text-you">
                       {digit}
                     </div>
                   ))}
@@ -246,7 +246,7 @@ export default function PairPage() {
                   className={`w-full rounded-xl border bg-background px-4 py-4 text-center text-3xl font-bold font-mono tracking-[0.5em] text-foreground outline-none transition-colors ${
                     pinError
                       ? "border-red-500/50 text-red-400"
-                      : "border-border focus:border-[#00d9ff]/40"
+                      : "border-border focus:border-you/40"
                   }`}
                 />
                 {pinError && (
@@ -259,7 +259,7 @@ export default function PairPage() {
                   disabled={
                     enteredPin.length !== PIN_LENGTH || state.status === "verifying"
                   }
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#00d9ff]/20 bg-[#00d9ff]/10 py-3 text-sm font-medium text-[#00d9ff] transition-all hover:bg-[#00d9ff]/20 disabled:opacity-40">
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-you/20 bg-you/10 py-3 text-sm font-medium text-you transition-all hover:bg-you/20 disabled:opacity-40">
                   <Zap className="h-4 w-4" />
                   Confirm
                 </button>
@@ -269,8 +269,8 @@ export default function PairPage() {
 
           {state.status === "paired" && (
             <div className="flex flex-col items-center gap-4 py-6 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[#00d9ff]/30 bg-[#00d9ff]/10">
-                <Zap className="h-6 w-6 text-[#00d9ff]" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-you/30 bg-you/10">
+                <Zap className="h-6 w-6 text-you" />
               </div>
               <h2 className="text-xl font-bold text-foreground">Connected</h2>
               <p className="text-xs text-muted-foreground">

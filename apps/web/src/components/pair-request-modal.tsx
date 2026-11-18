@@ -33,7 +33,7 @@ export function PairRequestModal({ incoming, onDismiss }: Props) {
       />
 
       {/* modal */}
-      <div className="relative w-full max-w-sm rounded-2xl border border-[#00d9ff]/20 bg-card p-6 shadow-2xl shadow-black/40">
+      <div className="relative w-full max-w-sm rounded-2xl border border-you/20 bg-card p-6 shadow-2xl shadow-black/40">
         <button
           onClick={handleReject}
           className="absolute right-4 top-4 rounded-lg p-1.5 text-muted-foreground transition-colors hover:text-foreground">
@@ -41,11 +41,11 @@ export function PairRequestModal({ incoming, onDismiss }: Props) {
         </button>
 
         <div className="mb-6 flex flex-col items-center gap-4 text-center">
-          <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-[#00d9ff]/20 bg-[#00d9ff]/5">
+          <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-you/20 bg-you/5">
             {incoming.fromMeta && (
               <OsIcon os={incoming.fromMeta.os} size={28} />
             )}
-            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#00d9ff]">
+            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-you">
               <Zap className="h-2.5 w-2.5 text-background" />
             </span>
           </div>
@@ -71,7 +71,7 @@ export function PairRequestModal({ incoming, onDismiss }: Props) {
         <div className="flex flex-col gap-2">
           <button
             onClick={handleAccept}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#00d9ff]/20 bg-[#00d9ff]/10 py-3 text-sm font-medium text-[#00d9ff] transition-all hover:bg-[#00d9ff]/20">
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-you/20 bg-you/10 py-3 text-sm font-medium text-you transition-all hover:bg-you/20">
             <Zap className="h-4 w-4" />
             accept
           </button>

@@ -125,7 +125,7 @@ export default function TransferPage() {
 
   return (
     <main className="relative flex min-h-screen flex-col overflow-hidden bg-background">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(0,217,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,217,255,0.03)_1px,transparent_1px)] bg-size-[64px_64px]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(color-mix(in_oklab,var(--you)_3%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_oklab,var(--you)_3%,transparent)_1px,transparent_1px)] bg-size-[64px_64px]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,transparent_40%,var(--background)_100%)]" />
 
       <header className="relative z-10 flex items-center gap-4 border-b border-border px-6 py-4">
@@ -138,7 +138,7 @@ export default function TransferPage() {
 
         {targetPeer && (
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#00d9ff]/20 bg-[#00d9ff]/5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-you/20 bg-you/5">
               <OsIcon os={targetPeer.meta.os} size={16} />
             </div>
             <div>
@@ -153,7 +153,7 @@ export default function TransferPage() {
         )}
 
         <div className="ml-auto flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#00d9ff]" />
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-you" />
           <span className="text-xs text-muted-foreground">
             {connectionLabel(connection)}
           </span>
@@ -171,17 +171,17 @@ export default function TransferPage() {
           onClick={() => fileInputRef.current?.click()}
           className={`flex cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed px-6 py-16 text-center transition-all duration-200 ${
             isDragging
-              ? "border-[#00d9ff]/60 bg-[#00d9ff]/5"
-              : "border-border hover:border-[#00d9ff]/30 hover:bg-[#00d9ff]/2"
+              ? "border-you/60 bg-you/5"
+              : "border-border hover:border-you/30 hover:bg-you/2"
           }`}>
           <div
             className={`flex h-14 w-14 items-center justify-center rounded-2xl border transition-colors ${
               isDragging
-                ? "border-[#00d9ff]/40 bg-[#00d9ff]/10"
+                ? "border-you/40 bg-you/10"
                 : "border-border bg-card"
             }`}>
             <Upload
-              className={`h-6 w-6 transition-colors ${isDragging ? "text-[#00d9ff]" : "text-muted-foreground"}`}
+              className={`h-6 w-6 transition-colors ${isDragging ? "text-you" : "text-muted-foreground"}`}
             />
           </div>
           <div>
@@ -227,7 +227,7 @@ export default function TransferPage() {
         {activeTransfers.length > 0 && (
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
-              <Zap className="h-3.5 w-3.5 text-[#00d9ff]" />
+              <Zap className="h-3.5 w-3.5 text-you" />
               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 Transferring
               </p>
@@ -237,7 +237,7 @@ export default function TransferPage() {
               return (
                 <div
                   key={t.transferId}
-                  className="rounded-xl border border-[#00d9ff]/15 bg-card p-4">
+                  className="rounded-xl border border-you/15 bg-card p-4">
                   <div className="mb-3 flex items-center justify-between gap-4">
                     <p className="truncate text-sm font-medium text-foreground">
                       {t.fileName}
@@ -273,7 +273,7 @@ export default function TransferPage() {
                   </div>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                     <div
-                      className="h-full rounded-full bg-[#00d9ff] transition-all duration-300"
+                      className="h-full rounded-full bg-you transition-all duration-300"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -299,7 +299,7 @@ export default function TransferPage() {
               <div
                 key={record.id}
                 className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3">
-                <CheckCircle className="h-4 w-4 shrink-0 text-[#00d9ff]" />
+                <CheckCircle className="h-4 w-4 shrink-0 text-you" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-foreground">
                     {record.fileName}

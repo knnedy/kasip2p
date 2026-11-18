@@ -1,21 +1,14 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Archivo, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { QueryProvider } from "@/providers/query-provider";
 import { PairingProvider } from "@/providers/pairing-provider";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Self-hosted at build time: no font requests leave the device at runtime.
+const archivo = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--font-archivo" });
+const hanken = Hanken_Grotesk({ subsets: ["latin"], variable: "--font-hanken" });
+const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
 
 export const metadata: Metadata = {
   title: "KasiP2P",
@@ -32,10 +25,10 @@ export default function RootLayout({
       lang="en"
       className={cn(
         "dark h-full antialiased",
-        geistSans.variable,
-        geistMono.variable,
+        archivo.variable,
+        hanken.variable,
+        jetbrains.variable,
         "font-sans",
-        inter.variable,
       )}>
       {/* providers render UI (status banner, modal), so they must sit inside body */}
       <body className="min-h-full flex flex-col">
