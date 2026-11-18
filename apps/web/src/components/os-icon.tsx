@@ -1,8 +1,6 @@
 import type { OS } from "@kasip2p/shared";
 import { siAndroid, siApple, siLinux, siUbuntu } from "simple-icons";
 
-const ACCENT = "var(--you)";
-const NEUTRAL = "#f1f5f9";
 
 const windowsPath =
   "M0 0h11.377v11.372H0zm12.623 0H24v11.372H12.623zM0 12.623h11.377V24H0zm12.623 0H24V24H12.623z";
@@ -10,28 +8,28 @@ const windowsPath =
 function getOsIcon(os: OS) {
   switch (os) {
     case "android":
-      return { path: siAndroid.path, color: ACCENT };
+      return siAndroid.path;
     case "ios":
     case "macos":
-      return { path: siApple.path, color: NEUTRAL };
+      return siApple.path;
     case "windows":
-      return { path: windowsPath, color: ACCENT };
+      return windowsPath;
     case "linux":
-      return { path: siUbuntu.path, color: ACCENT };
+      return siUbuntu.path;
     default:
-      return { path: siLinux.path, color: NEUTRAL };
+      return siLinux.path;
   }
 }
 
 export function OsIcon({ os, size = 20 }: { os: OS; size?: number }) {
-  const { path, color } = getOsIcon(os);
+  const path = getOsIcon(os); // coloured by the parent: the device's end, not its OS
   return (
     <svg
       role="img"
       viewBox="0 0 24 24"
       width={size}
       height={size}
-      fill={color}
+      fill="currentColor"
       aria-label={os}>
       <path d={path} />
     </svg>

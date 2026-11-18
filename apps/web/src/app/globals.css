@@ -144,6 +144,21 @@
   }
 }
 
+/* Wire bursts travel from the sending end (see components/wire). */
+@keyframes wire-burst {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+.wire-bursts {
+  animation: wire-burst 1.2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wire-bursts {
+    display: none;
+  }
+}
+
 /* Safety net; components also drop their own motion under reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   *,
