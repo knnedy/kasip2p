@@ -22,7 +22,7 @@ Current: Stage 4 (UI/UX) on `feat/stage4-polish`.
 ## Stage 4 plan
 
 - [x] 22. style(web): Kasi palette and type tokens, no hard-coded colours
-- [ ] 23. feat(web): shared size formatting and plain failure messages
+- [x] 23. feat(web): shared size formatting and plain failure messages
 - [ ] 24. feat(web): wire component for the connection between two devices
 - [ ] 25. feat(web): redesign home around nearby devices
 - [ ] 26. feat(web): redesign pairing
@@ -78,13 +78,13 @@ Current: Stage 4 (UI/UX) on `feat/stage4-polish`.
 
 ## Next 3 steps
 
-1. feat(web): shared size formatting and plain failure messages
-2. feat(web): wire component for the connection between two devices
-3. feat(web): redesign home around nearby devices
+1. feat(web): wire component for the connection between two devices
+2. feat(web): redesign home around nearby devices
+3. feat(web): redesign pairing
 
 ## Half-done files
 
-- step 22 swapped colours 1:1; layouts still old until 25-27; pinned phone slowdown; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
+- layouts still old until 25-27; formatEta ready for the transfer redesign; pinned phone slowdown; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
 
 ## Stage 2 (done, merged)
 

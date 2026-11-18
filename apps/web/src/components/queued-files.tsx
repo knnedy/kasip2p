@@ -3,14 +3,9 @@
 import { useSyncExternalStore } from "react";
 import { ArrowUp, Folder, ListOrdered, X } from "lucide-react";
 import type { createSendQueue } from "@/lib/transfer/send-queue";
+import { formatBytes } from "@/lib/format/format";
 
 type SendQueue = ReturnType<typeof createSendQueue>;
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
-}
 
 // Files waiting behind the one in flight; reorder or remove before they start.
 export function QueuedFiles({ queue, peerId }: { queue: SendQueue; peerId: string }) {

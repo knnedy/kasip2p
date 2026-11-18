@@ -17,7 +17,7 @@ import { useCanPickFolders } from "@/hooks/use-can-pick-folders";
 import type { ConnectionInfo } from "@/lib/webrtc/connection-info";
 import { usePeers } from "@/hooks/use-peers";
 import { getTransfers } from "@/lib/store/idb";
-import { pairedPeers, signalingClient } from "@/lib/signaling/ws-client";
+import { pairedPeers, signalingClient, peerNames } from "@/lib/signaling/ws-client";
 import {
   ArrowLeft,
   Upload,
@@ -30,15 +30,8 @@ import {
   X,
 } from "lucide-react";
 import { OsIcon } from "@/components/os-icon";
+import { formatBytes, formatSpeed } from "@/lib/format/format";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
-}
 
 const ROUTE_LABEL: Record<ConnectionInfo["route"], string> = {
   local: "Direct · local network",
@@ -63,6 +56,7 @@ export default function TransferPage() {
   const queryClient = useQueryClient();
   const { peers } = usePeers(localPeerId);
   const targetPeer = peers.find((p) => p.meta.peerId === targetId);
+  const peerName = targetPeer?.meta.name ?? peerNames.get(targetId) ?? "the other device";
   const connection = useConnectionInfo(targetId);
 
   const { transfers, failedFor, retry, dismiss, queue, initiate, send, control } = useWebRTC(localPeerId, () => {
@@ -220,7 +214,12 @@ export default function TransferPage() {
           />
         </div>
 
-        <FailedTransfers items={failedFor(targetId)} onRetry={retry} onDismiss={dismiss} />
+        <FailedTransfers
+          items={failedFor(targetId)}
+          peerName={peerName}
+          onRetry={retry}
+          onDismiss={dismiss}
+        />
 
         <QueuedFiles queue={queue} peerId={targetId} />
 
@@ -248,7 +247,7 @@ export default function TransferPage() {
                           ? "Paused by other device"
                           : t.pausedBy === "local"
                             ? "Paused"
-                            : `${t.speedMBps.toFixed(1)} MB/s`}
+                            : formatSpeed(t.speedMBps)}
                       </span>
                       <span>{pct}%</span>
                       <button
