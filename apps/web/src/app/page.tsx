@@ -1,309 +1,163 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { usePeers } from "@/hooks/use-peers";
-import type { PeerEntry } from "@/hooks/use-peers";
+import { useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Check, Copy } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { usePeers, type PeerEntry } from "@/hooks/use-peers";
+import { usePairedPeers } from "@/hooks/use-paired-peers";
 import { OsIcon } from "@/components/os-icon";
 import { DeviceNameEditor } from "@/components/device-name-editor";
-import { usePairedPeers } from "@/hooks/use-paired-peers";
-import { Zap, Shield, Wifi } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Wordmark } from "@/components/wordmark";
 import { getOrCreatePeerId } from "@/lib/peer-id";
 
-const ACCENT = "var(--you)";
-const ACCENT_DIM = "rgba(0,217,255,";
+const OS_LABEL: Record<string, string> = {
+  android: "Android",
+  ios: "iPhone or iPad",
+  macos: "Mac",
+  windows: "Windows",
+  linux: "Linux",
+  unknown: "Device",
+};
 
-function drawRadar(
-  canvas: HTMLCanvasElement,
-  peers: PeerEntry[],
-  angle: number,
-) {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
+const noSubscribe = () => () => {};
 
-  const size = canvas.width;
-  const cx = size / 2;
-  const cy = size / 2;
-  const maxR = size / 2 - 16;
+function DeviceRow({ peer, paired, onOpen }: { peer: PeerEntry; paired: boolean; onOpen(): void }) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="group flex min-h-16 w-full items-center gap-4 rounded-2xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-them/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-them/12 text-them">
+          <OsIcon os={peer.meta.os} size={18} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-display font-semibold font-stretch-semi-expanded text-foreground">
+            {peer.meta.name}
+          </span>
+          <span className="block text-sm text-muted-foreground">
+            {OS_LABEL[peer.meta.os] ?? "Device"} · {paired ? "Paired" : "Not paired yet"}
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-them">
+          {paired ? "Send" : "Pair"}
+          <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+        </span>
+      </button>
+    </li>
+  );
+}
 
-  ctx.clearRect(0, 0, size, size);
+// No one else here yet: help open the app on the second device.
+function OpenOnOtherDevice() {
+  const origin = useSyncExternalStore(noSubscribe, () => window.location.origin, () => "");
+  const canCopy = useSyncExternalStore(noSubscribe, () => !!navigator.clipboard, () => false);
+  const [copied, setCopied] = useState(false);
+  const host = origin.replace(/^https?:\/\//, "");
+  // another device can't reach "localhost"; point to the network address instead
+  const local = /^(localhost|127\.|\[::1\])/.test(host);
 
-  const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR);
-  bg.addColorStop(0, "#071520");
-  bg.addColorStop(1, "#020a0f");
-  ctx.fillStyle = bg;
-  ctx.beginPath();
-  ctx.arc(cx, cy, maxR + 16, 0, Math.PI * 2);
-  ctx.fill();
-
-  for (let i = 1; i <= 4; i++) {
-    const r = (maxR / 4) * i;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.strokeStyle = i === 4 ? `${ACCENT_DIM}0.2)` : `${ACCENT_DIM}0.07)`;
-    ctx.lineWidth = i === 4 ? 1.5 : 1;
-    ctx.stroke();
-  }
-
-  for (const [x1, y1, x2, y2] of [
-    [cx, cy - maxR, cx, cy + maxR],
-    [cx - maxR, cy, cx + maxR, cy],
-  ]) {
-    ctx.beginPath();
-    ctx.moveTo(x1!, y1!);
-    ctx.lineTo(x2!, y2!);
-    ctx.strokeStyle = `${ACCENT_DIM}0.06)`;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  }
-
-  const d = maxR * Math.cos(Math.PI / 4);
-  for (const [x1, y1, x2, y2] of [
-    [cx - d, cy - d, cx + d, cy + d],
-    [cx + d, cy - d, cx - d, cy + d],
-  ]) {
-    ctx.beginPath();
-    ctx.moveTo(x1!, y1!);
-    ctx.lineTo(x2!, y2!);
-    ctx.strokeStyle = `${ACCENT_DIM}0.03)`;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  }
-
-  const sweepAngle = Math.PI / 3;
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(angle);
-
-  const grad = ctx.createLinearGradient(0, 0, maxR, 0);
-  grad.addColorStop(0, `${ACCENT_DIM}0.55)`);
-  grad.addColorStop(0.5, `${ACCENT_DIM}0.15)`);
-  grad.addColorStop(1, `${ACCENT_DIM}0)`);
-
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.arc(0, 0, maxR, -sweepAngle / 2, sweepAngle / 2);
-  ctx.closePath();
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(maxR, 0);
-  ctx.strokeStyle = `${ACCENT_DIM}0.9)`;
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-  ctx.restore();
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, 10, 0, Math.PI * 2);
-  ctx.strokeStyle = `${ACCENT_DIM}0.2)`;
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-  ctx.fillStyle = ACCENT;
-  ctx.fill();
-
-  peers.forEach((peer, index) => {
-    const a = (index / Math.max(peers.length, 1)) * Math.PI * 2 - Math.PI / 2;
-    const radius = maxR * 0.58;
-    const x = cx + Math.cos(a) * radius;
-    const y = cy + Math.sin(a) * radius;
-
-    ctx.beginPath();
-    ctx.arc(x, y, 18, 0, Math.PI * 2);
-    ctx.strokeStyle = `${ACCENT_DIM}0.12)`;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(x, y, 10, 0, Math.PI * 2);
-    ctx.strokeStyle = `${ACCENT_DIM}0.35)`;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(x, y, 8, 0, Math.PI * 2);
-    ctx.fillStyle = `${ACCENT_DIM}0.1)`;
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(x, y, 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = ACCENT;
-    ctx.fill();
-
-    ctx.font = "500 11px sans-serif";
-    ctx.fillStyle = "rgba(241,245,249,0.7)";
-    ctx.textAlign = "center";
-    ctx.fillText(peer.meta.name, x, y + 30);
-  });
+  return (
+    <div className="flex flex-col items-center gap-5 rounded-3xl border border-dashed border-border px-6 py-8 text-center sm:flex-row sm:text-left">
+      {origin && !local && (
+        <div className="shrink-0 rounded-2xl bg-foreground p-3">
+          <QRCodeSVG value={origin} size={112} bgColor="transparent" fgColor="var(--background)" />
+        </div>
+      )}
+      <div className="flex flex-col gap-2">
+        <p className="font-display font-semibold font-stretch-semi-expanded text-foreground">
+          Open KasiP2P on your other device
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {local ? (
+            <>
+              Open this computer&apos;s network address on the other device (not{" "}
+              <span className="font-mono text-foreground">{host}</span>).
+            </>
+          ) : (
+            <>
+              Scan the code or go to <span className="font-mono text-foreground">{host}</span>.
+            </>
+          )}{" "}
+          Both devices need to be on the same Wi-Fi.
+        </p>
+        {canCopy && !local && (
+          <button
+            type="button"
+            onClick={() =>
+              void navigator.clipboard.writeText(origin).then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              })
+            }
+            className="mx-auto inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:mx-0 sm:self-start">
+            {copied ? <Check className="size-4 text-you" /> : <Copy className="size-4" />}
+            {copied ? "Link copied" : "Copy link"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function Home() {
   const router = useRouter();
   const [peerId] = useState<string>(getOrCreatePeerId);
-
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animRef = useRef<number>(0);
-  const angleRef = useRef<number>(0);
-  const peersRef = useRef<PeerEntry[]>([]);
   const { peers } = usePeers(peerId);
   const paired = usePairedPeers();
 
-  // keep peersRef in sync without restarting the animation
-  useEffect(() => {
-    peersRef.current = peers;
-  }, [peers]);
-
-  // start animation once canvas has real dimensions
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    let started = false;
-
-    function loop() {
-      if (!canvas) return;
-      drawRadar(canvas, peersRef.current, angleRef.current);
-      angleRef.current += 0.01;
-      animRef.current = requestAnimationFrame(loop);
-    }
-
-    const observer = new ResizeObserver(() => {
-      const size = Math.min(canvas.offsetWidth, canvas.offsetHeight);
-      if (size === 0 || started) return;
-      canvas.width = size;
-      canvas.height = size;
-      started = true;
-      loop();
-    });
-
-    observer.observe(canvas);
-
-    return () => {
-      observer.disconnect();
-      cancelAnimationFrame(animRef.current);
-    };
-  }, []);
+  // paired devices first: they are one tap from sending
+  const sorted = [...peers].sort(
+    (a, b) => Number(paired.includes(b.meta.peerId)) - Number(paired.includes(a.meta.peerId)),
+  );
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(color-mix(in_oklab,var(--you)_3%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_oklab,var(--you)_3%,transparent)_1px,transparent_1px)] bg-size-[64px_64px]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,transparent_40%,var(--background)_100%)]" />
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className="h-125 w-125 rounded-full bg-you/3 blur-3xl" />
-      </div>
-
-      <div className="relative z-10 mb-10 flex flex-col items-center gap-4">
-        <h1 className="text-6xl font-bold tracking-tight text-foreground">
-          Kasi<span className="text-you">P2P</span>
-        </h1>
-
-        <p className="max-w-sm text-center text-sm text-muted-foreground">
-          Open this page on any device on your network to connect instantly
-        </p>
-        <div className="inline-flex items-center gap-2 rounded-full border border-you/20 bg-you/5 px-4 py-1.5">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-you" />
-          <span className="text-xs font-medium text-muted-foreground">
-            {peers.length === 0
-              ? "scanning your network"
-              : `${peers.length} device${peers.length > 1 ? "s" : ""} found`}
-          </span>
-        </div>
+    <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-10 px-4 pt-6 pb-8 sm:pt-10">
+      <header className="flex flex-col gap-4">
+        <Wordmark />
         <DeviceNameEditor />
-      </div>
+      </header>
 
-      <div className="relative z-10 w-80 h-80 md:w-110 md:h-110">
-        <canvas ref={canvasRef} className="h-full w-full rounded-full" />
-        <div className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-you/15" />
-      </div>
+      <section aria-labelledby="devices-heading" className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h1
+            id="devices-heading"
+            className="font-display text-3xl font-bold tracking-tight text-balance font-stretch-expanded text-foreground sm:text-4xl">
+            Send to a nearby device
+          </h1>
+          <p className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
+            <span className="size-1.5 rounded-full bg-you motion-safe:animate-pulse" />
+            {peers.length === 0
+              ? "Looking for devices on your Wi-Fi…"
+              : `${peers.length} device${peers.length > 1 ? "s" : ""} on your Wi-Fi`}
+          </p>
+        </div>
 
-      {peers.length > 0 && (
-        <div className="relative z-10 mt-10 w-full max-w-md px-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Wifi className="h-3.5 w-3.5 text-you" />
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Nearby devices
-            </p>
-          </div>
-          <div className="flex flex-col gap-2">
-            {peers.map((peer: PeerEntry) => {
+        {sorted.length > 0 ? (
+          <ul className="flex flex-col gap-2">
+            {sorted.map((peer) => {
               const isPaired = paired.includes(peer.meta.peerId);
               return (
-                <button
-                  onClick={() =>
-                    router.push(
-                      `/${isPaired ? "transfer" : "pair"}/${peer.meta.peerId}`,
-                    )
-                  }
+                <DeviceRow
                   key={peer.meta.peerId}
-                  className="group flex w-full items-center gap-4 rounded-xl border border-you/10 bg-card px-4 py-3 text-left transition-all duration-200 hover:border-you/30 hover:bg-card/80"
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-you/20 bg-you/5">
-                    <OsIcon os={peer.meta.os} size={20} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-foreground">
-                      {peer.meta.name}
-                    </p>
-                    <p className="text-xs capitalize text-muted-foreground">
-                      {peer.meta.os} ·{" "}
-                      {isPaired ? "paired" : peer.connectionState}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-you/20 bg-you/5 px-3 py-1.5 transition-all group-hover:border-you/40 group-hover:bg-you/10">
-                    <Zap className="h-3 w-3 text-you" />
-                    <span className="text-xs font-medium text-you">
-                      {isPaired ? "Open" : "Connect"}
-                    </span>
-                  </div>
-                </button>
+                  peer={peer}
+                  paired={isPaired}
+                  onOpen={() =>
+                    router.push(`/${isPaired ? "transfer" : "pair"}/${peer.meta.peerId}`)
+                  }
+                />
               );
             })}
-          </div>
-        </div>
-      )}
+          </ul>
+        ) : (
+          <OpenOnOtherDevice />
+        )}
+      </section>
 
-      {peers.length === 0 && (
-        <div className="relative z-10 mt-10 w-full max-w-lg px-4">
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              {
-                icon: Shield,
-                title: "Private",
-                desc: "Files never leave your network",
-              },
-              { icon: Zap, title: "Instant", desc: "Local network speeds" },
-              {
-                icon: Wifi,
-                title: "Direct",
-                desc: "Device to device, no cloud",
-              },
-            ].map(({ icon: Icon, title, desc }) => (
-              <div
-                key={title}
-                className="flex flex-col items-center gap-2 rounded-xl border border-you/10 bg-card px-4 py-5 text-center"
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-you/10">
-                  <Icon className="h-4 w-4 text-you" />
-                </div>
-                <p className="text-sm font-semibold text-foreground">{title}</p>
-                <p className="text-xs text-muted-foreground">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* footer */}
-      <div className="relative z-10 mt-auto pt-16 pb-8 text-center">
-        <p className="text-xs text-muted-foreground/50 flex items-center justify-center gap-2">
-          <span className="hidden sm:inline">✓</span>
-          <span>Zero cloud · Maximum privacy · Open source</span>
-        </p>
-      </div>
+      <footer className="mt-auto text-sm text-muted-foreground">
+        Files go straight from one device to the other. Nothing is uploaded.
+      </footer>
     </main>
   );
 }
