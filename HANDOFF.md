@@ -36,7 +36,7 @@ Current: cleanup on `chore/cleanup`, then the pinned phone send slowdown.
 - [x] 32. feat(web): redesign device renaming (friendly default names)
 - [x] 33. feat(web): light theme, dark by default, then merge
 - [x] 34. fix(web): keep both sides' pauses when both devices pause
-- [ ] 35. chore(web): remove unused shadcn button
+- [x] 35. chore(web): remove unused shadcn button
 
 ## Stage 3 decisions
 
@@ -86,7 +86,7 @@ Current: cleanup on `chore/cleanup`, then the pinned phone send slowdown.
 
 ## Next 3 steps
 
-1. chore(web): remove unused shadcn button
+1. Stage wrap-up: summarize and ask before next stage
 
 ## Half-done files
 
