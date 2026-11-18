@@ -1,7 +1,7 @@
 # HANDOFF
 
 Working log for the staged refactor. Stages 1–3 merged into `main` (e8a1a82).
-Current: Stage 4 follow-ups (icons, favicon, renaming, light theme) on `feat/stage4-polish`.
+Current: Stage 4 and follow-ups done; next is the pinned phone send slowdown.
 
 ## Stage 4 decisions
 
@@ -18,6 +18,8 @@ Current: Stage 4 follow-ups (icons, favicon, renaming, light theme) on `feat/sta
 - motion via emil-design-eng: short ease-out enters, press scale, transform-only progress;
   the wire's moving bursts are the only ambient motion; reduced motion = static fills
 - pinned: phone→laptop 133MB slowed 3 → 0.2 MB/s in device test; diagnose after Stage 4
+- light theme: dark is the default; a pre-paint script applies a saved "light" choice
+  (localStorage kasip2p:theme); light uses deeper you #0e7490 / them #b45309 for AA text
 
 ## Stage 4 plan
 
@@ -32,7 +34,7 @@ Current: Stage 4 follow-ups (icons, favicon, renaming, light theme) on `feat/sta
 - [x] 30. fix(web): show the right device icons on every page
 - [x] 31. feat(web): favicon from the wire mark
 - [x] 32. feat(web): redesign device renaming (friendly default names)
-- [ ] 33. feat(web): light theme, dark by default, then merge
+- [x] 33. feat(web): light theme, dark by default, then merge
 
 ## Stage 3 decisions
 
@@ -82,11 +84,11 @@ Current: Stage 4 follow-ups (icons, favicon, renaming, light theme) on `feat/sta
 
 ## Next 3 steps
 
-1. feat(web): light theme, dark by default, then merge
+1. Stage wrap-up: summarize and ask before next stage
 
 ## Half-done files
 
-- light theme next (dark default, no flash); pinned phone slowdown; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
+- Stage 4 + follow-ups merged; next: diagnose pinned phone slowdown (3 → 0.2 MB/s); test servers share port 3001 with the dev signaling server; components/ui/button.tsx unused; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
 
 ## Stage 2 (done, merged)
 

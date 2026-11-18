@@ -55,43 +55,52 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* "Kasi" by day: cool paper, deeper cyan and amber so they work as text (all >= 4.5:1) */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  color-scheme: light;
+  --background: #f4f6f9;
+  --foreground: #0b0f14;
+  --card: #ffffff;
+  --card-foreground: #0b0f14;
+  --popover: #ffffff;
+  --popover-foreground: #0b0f14;
+  --primary: #0e7490;
+  --primary-foreground: #f4f6f9;
+  --secondary: #e9edf2;
+  --secondary-foreground: #0b0f14;
+  --muted: #e9edf2;
+  --muted-foreground: #556274;
+  --accent: #e9edf2;
+  --accent-foreground: #0b0f14;
+  --destructive: #c62a21;
+  --border: #d3dae3;
+  --input: #d3dae3;
+  --ring: #0e7490;
+  --you: #0e7490;
+  --them: #b45309;
+  --line: #c5cdd8;
+  /* QR codes stay dark-on-light in both themes so every scanner reads them */
+  --qr-dark: #0b0f14;
+  --qr-light: #ffffff;
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --chart-1: #0e7490;
+  --chart-2: #b45309;
+  --chart-3: #556274;
+  --chart-4: #c5cdd8;
+  --chart-5: #e9edf2;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0b0f14;
+  --sidebar-primary: #0e7490;
+  --sidebar-primary-foreground: #f4f6f9;
+  --sidebar-accent: #e9edf2;
+  --sidebar-accent-foreground: #0b0f14;
+  --sidebar-border: #d3dae3;
+  --sidebar-ring: #0e7490;
 }
 
 /* "Kasi" palette: ink night, cyan for this device, sodium amber for the other */
 .dark {
+  color-scheme: dark;
   --background: #0b0f14; /* ink */
   --foreground: #e8edf2; /* chalk */
   --card: #151b23; /* slate */
@@ -113,6 +122,8 @@
   --you: #00d9ff;
   --them: #ffb547;
   --line: #263040;
+  --qr-dark: #0b0f14;
+  --qr-light: #e8edf2;
   --chart-1: #00d9ff;
   --chart-2: #ffb547;
   --chart-3: #8a97a8;

@@ -3,6 +3,7 @@
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Wordmark } from "@/components/wordmark";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 // Back to the device list; the wordmark keeps every screen anchored to the brand.
 export function TopBar({ children }: { children?: React.ReactNode }) {
@@ -16,7 +17,10 @@ export function TopBar({ children }: { children?: React.ReactNode }) {
         <ArrowLeft className="size-4" />
         Devices
       </button>
-      {children ?? <Wordmark />}
+      <div className="flex items-center gap-2">
+        {children ?? <Wordmark />}
+        <ThemeToggle />
+      </div>
     </header>
   );
 }

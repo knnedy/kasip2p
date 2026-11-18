@@ -9,6 +9,7 @@ import { usePairedPeers } from "@/hooks/use-paired-peers";
 import { OsIcon } from "@/components/os-icon";
 import { DeviceNameEditor } from "@/components/device-name-editor";
 import { Wordmark } from "@/components/wordmark";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { getOrCreatePeerId } from "@/lib/peer-id";
 
 const OS_LABEL: Record<string, string> = {
@@ -61,8 +62,8 @@ function OpenOnOtherDevice() {
   return (
     <div className="flex flex-col items-center gap-5 rounded-3xl border border-dashed border-border px-6 py-8 text-center sm:flex-row sm:text-left">
       {origin && !local && (
-        <div className="shrink-0 rounded-2xl bg-foreground p-3">
-          <QRCodeSVG value={origin} size={112} bgColor="transparent" fgColor="var(--background)" />
+        <div className="shrink-0 rounded-2xl bg-[var(--qr-light)] p-3">
+          <QRCodeSVG value={origin} size={112} bgColor="transparent" fgColor="var(--qr-dark)" />
         </div>
       )}
       <div className="flex flex-col gap-2">
@@ -115,7 +116,10 @@ export default function Home() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-10 px-4 pt-6 pb-8 sm:pt-10">
       <header className="flex flex-col gap-4">
-        <Wordmark />
+        <div className="flex items-center justify-between">
+          <Wordmark />
+          <ThemeToggle />
+        </div>
         <DeviceNameEditor />
       </header>
 
