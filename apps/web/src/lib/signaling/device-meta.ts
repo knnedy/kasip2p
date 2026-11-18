@@ -1,3 +1,4 @@
+import { defaultDeviceName } from "./default-name";
 import type { DeviceType, OS, PeerMeta } from "@kasip2p/shared";
 
 export function getDeviceMeta(peerId: string): PeerMeta {
@@ -21,8 +22,7 @@ export function getDeviceMeta(peerId: string): PeerMeta {
       ? "tablet"
       : "desktop";
 
-  // server rejects empty or >64 char names; navigator.platform can be ""
-  const name = (navigator.platform || "Unknown device").slice(0, 64);
+  const name = defaultDeviceName(ua); // always 1–64 chars, as the server requires
 
   return { peerId, name, os, deviceType };
 }

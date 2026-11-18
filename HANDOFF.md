@@ -31,7 +31,7 @@ Current: Stage 4 follow-ups (icons, favicon, renaming, light theme) on `feat/sta
 - [x] 29. fix(web): accessibility pass, then merge (before/after screenshots)
 - [x] 30. fix(web): show the right device icons on every page
 - [x] 31. feat(web): favicon from the wire mark
-- [ ] 32. feat(web): redesign device renaming (friendly default names)
+- [x] 32. feat(web): redesign device renaming (friendly default names)
 - [ ] 33. feat(web): light theme, dark by default, then merge
 
 ## Stage 3 decisions
@@ -82,12 +82,11 @@ Current: Stage 4 follow-ups (icons, favicon, renaming, light theme) on `feat/sta
 
 ## Next 3 steps
 
-1. feat(web): redesign device renaming (friendly default names)
-2. feat(web): light theme, dark by default, then merge
+1. feat(web): light theme, dark by default, then merge
 
 ## Half-done files
 
-- default device names come from navigator.platform (fixing in 32); pinned phone slowdown; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
+- light theme next (dark default, no flash); pinned phone slowdown; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
 
 ## Stage 2 (done, merged)
 
