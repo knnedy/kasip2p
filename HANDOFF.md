@@ -30,7 +30,7 @@ Current: Stage 4 follow-ups (icons, favicon, renaming, light theme) on `feat/sta
 - [x] 28. style(web): motion pass with reduced-motion support
 - [x] 29. fix(web): accessibility pass, then merge (before/after screenshots)
 - [x] 30. fix(web): show the right device icons on every page
-- [ ] 31. feat(web): favicon from the wire mark
+- [x] 31. feat(web): favicon from the wire mark
 - [ ] 32. feat(web): redesign device renaming (friendly default names)
 - [ ] 33. feat(web): light theme, dark by default, then merge
 
@@ -82,9 +82,8 @@ Current: Stage 4 follow-ups (icons, favicon, renaming, light theme) on `feat/sta
 
 ## Next 3 steps
 
-1. feat(web): favicon from the wire mark
-2. feat(web): redesign device renaming (friendly default names)
-3. feat(web): light theme, dark by default, then merge
+1. feat(web): redesign device renaming (friendly default names)
+2. feat(web): light theme, dark by default, then merge
 
 ## Half-done files
 
