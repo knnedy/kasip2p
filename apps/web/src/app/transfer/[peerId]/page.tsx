@@ -240,7 +240,7 @@ export default function TransferPage() {
         </p>
         <Wire
           you={you}
-          them={{ name: peerName, os: targetPeer?.meta.os }}
+          them={{ name: peerName, os: targetPeer?.meta.os ?? peerNames.meta(targetId)?.os }}
           route={connection?.route ?? "unknown"}
           summary={summary}
         />

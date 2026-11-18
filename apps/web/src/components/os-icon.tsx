@@ -1,6 +1,9 @@
 import type { OS } from "@kasip2p/shared";
-import { siAndroid, siApple, siLinux, siUbuntu } from "simple-icons";
+import { siAndroid, siApple, siUbuntu } from "simple-icons";
 
+
+const genericDevicePath =
+  "M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 2v9h16V6zm3 13h10v2H7z";
 
 const windowsPath =
   "M0 0h11.377v11.372H0zm12.623 0H24v11.372H12.623zM0 12.623h11.377V24H0zm12.623 0H24V24H12.623z";
@@ -17,7 +20,7 @@ function getOsIcon(os: OS) {
     case "linux":
       return siUbuntu.path;
     default:
-      return siLinux.path;
+      return genericDevicePath; // unknown OS: a plain screen, not a guess
   }
 }
 

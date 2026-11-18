@@ -139,7 +139,7 @@ export default function PairPage() {
   const you = useThisDevice();
   const them = {
     name: targetPeer?.meta.name ?? peerNames.get(targetId),
-    os: targetPeer?.meta.os,
+    os: targetPeer?.meta.os ?? peerNames.meta(targetId)?.os,
   };
   const idle = { flow: "idle", progress: null, speedMBps: 0, paused: false } as const;
 
