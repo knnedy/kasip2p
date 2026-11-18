@@ -190,10 +190,9 @@ async function main() {
     await sender.goto(`${APP}/pair/${receiverId}`);
     await receiver.getByRole("button", { name: "accept" }).click();
     await receiver.waitForURL(`**/pair/${senderId}`);
-    const pinBox = receiver.getByText("Your PIN").locator("xpath=following-sibling::div[1]");
-    const pin = (await pinBox.locator("div").allTextContents()).join("");
+    const pin = (await receiver.locator("[data-pin]").getAttribute("data-pin"))!;
     await sender.locator('input[inputmode="numeric"]').fill(pin);
-    await sender.getByRole("button", { name: "Confirm" }).click();
+    await sender.getByRole("button", { name: "Pair devices" }).click();
     await Promise.all([
       sender.waitForURL(`**/transfer/${receiverId}`),
       receiver.waitForURL(`**/transfer/${senderId}`),
