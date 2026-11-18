@@ -120,8 +120,21 @@ describe("transfersReducer", () => {
       { type: "paused", transferId: "t1", by: "remote" },
     );
     expect(activeTransfers(paused)[0]).toMatchObject({ transferredBytes: 5, pausedBy: "remote" });
-    const resumed = transfersReducer(paused, { type: "resumed", transferId: "t1" });
+    const resumed = transfersReducer(paused, { type: "resumed", transferId: "t1", by: "remote" });
     expect(activeTransfers(resumed)[0]?.pausedBy).toBeNull();
+  });
+
+  it("keeps each side's pause until that side resumes", () => {
+    const both = run(
+      started,
+      { type: "paused", transferId: "t1", by: "local" },
+      { type: "paused", transferId: "t1", by: "remote" },
+    );
+    expect(activeTransfers(both)[0]?.pausedBy).toBe("both");
+    const theyResumed = transfersReducer(both, { type: "resumed", transferId: "t1", by: "remote" });
+    expect(activeTransfers(theyResumed)[0]?.pausedBy).toBe("local");
+    const iResumed = transfersReducer(both, { type: "resumed", transferId: "t1", by: "local" });
+    expect(activeTransfers(iResumed)[0]?.pausedBy).toBe("remote");
   });
 
   it("lists failed transfers per peer until dismissed", () => {

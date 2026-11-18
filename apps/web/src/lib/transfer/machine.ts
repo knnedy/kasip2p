@@ -14,7 +14,7 @@ export type Transfer =
       info: TransferInfo;
       transferredBytes: number;
       baseBytes: number; // already held when this attempt started (resume)
-      pausedBy: "local" | "remote" | null;
+      paused: { local: boolean; remote: boolean }; // each side lifts only its own
       startedAt: number;
       updatedAt: number;
     }
@@ -35,7 +35,7 @@ export type TransferEvent =
   | { type: "completed"; transferId: string; at: number }
   | { type: "failed"; transferId: string; reason: string }
   | { type: "paused"; transferId: string; by: "local" | "remote" }
-  | { type: "resumed"; transferId: string }
+  | { type: "resumed"; transferId: string; by: "local" | "remote" }
   | { type: "dismissed"; transferId: string }; // drop a failed transfer from view
 
 // Only active transfers move; events for unknown or finished transfers are ignored.
@@ -51,7 +51,7 @@ export function transfersReducer(
       info: event.info,
       transferredBytes: event.offset ?? 0,
       baseBytes: event.offset ?? 0,
-      pausedBy: null,
+      paused: { local: false, remote: false },
       startedAt: event.at,
       updatedAt: event.at,
     };
@@ -77,10 +77,8 @@ export function transfersReducer(
       break;
     }
     case "paused":
-      next = { ...current, pausedBy: event.by };
-      break;
     case "resumed":
-      next = { ...current, pausedBy: null };
+      next = { ...current, paused: { ...current.paused, [event.by]: event.type === "paused" } };
       break;
     case "completed":
       next = {
@@ -103,6 +101,10 @@ export function transfersReducer(
   return { ...state, [event.transferId]: next };
 }
 
+function pausedBy({ local, remote }: { local: boolean; remote: boolean }) {
+  return local && remote ? "both" : local ? "local" : remote ? "remote" : null;
+}
+
 export function toProgress(
   t: Extract<Transfer, { status: "active" }>,
 ): TransferProgress {
@@ -115,7 +117,7 @@ export function toProgress(
     speedMBps:
       seconds > 0 ? (t.transferredBytes - t.baseBytes) / seconds / 1024 / 1024 : 0,
     direction: t.info.direction,
-    pausedBy: t.pausedBy,
+    pausedBy: pausedBy(t.paused),
   };
 }
 

@@ -60,5 +60,5 @@ export interface TransferProgress {
   transferredBytes: number;
   speedMBps: number;
   direction: "sending" | "receiving";
-  pausedBy: "local" | "remote" | null; // which side paused it, if any
+  pausedBy: "local" | "remote" | "both" | null; // which side(s) paused it, if any
 }

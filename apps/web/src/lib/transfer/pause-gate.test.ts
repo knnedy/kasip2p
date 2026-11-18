@@ -20,7 +20,6 @@ describe("pause gate", () => {
     gate.pause("local");
     gate.pause("remote");
     gate.resume("local");
-    expect(gate.state()).toEqual({ local: false, remote: true });
     const passed = vi.fn();
     void gate.wait().then(passed);
     await Promise.resolve();

@@ -1,7 +1,7 @@
 # HANDOFF
 
 Working log for the staged refactor. Stages 1–3 merged into `main` (e8a1a82).
-Current: Stage 4 and follow-ups done; next is the pinned phone send slowdown.
+Current: cleanup on `chore/cleanup`, then the pinned phone send slowdown.
 
 ## Stage 4 decisions
 
@@ -35,6 +35,8 @@ Current: Stage 4 and follow-ups done; next is the pinned phone send slowdown.
 - [x] 31. feat(web): favicon from the wire mark
 - [x] 32. feat(web): redesign device renaming (friendly default names)
 - [x] 33. feat(web): light theme, dark by default, then merge
+- [x] 34. fix(web): keep both sides' pauses when both devices pause
+- [ ] 35. chore(web): remove unused shadcn button
 
 ## Stage 3 decisions
 
@@ -84,11 +86,11 @@ Current: Stage 4 and follow-ups done; next is the pinned phone send slowdown.
 
 ## Next 3 steps
 
-1. Stage wrap-up: summarize and ask before next stage
+1. chore(web): remove unused shadcn button
 
 ## Half-done files
 
-- Stage 4 + follow-ups merged; next: diagnose pinned phone slowdown (3 → 0.2 MB/s); test servers share port 3001 with the dev signaling server; components/ui/button.tsx unused; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
+- next: phone slowdown (3 → 0.2 MB/s); Render dashboard: set ALLOWED_ORIGINS to the web origin
 
 ## Stage 2 (done, merged)
 

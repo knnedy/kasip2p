@@ -150,12 +150,7 @@ export function useWebRTC(
             dispatch({ type: "paused", transferId: msg.transferId, by: "remote" });
           } else {
             mine?.gate.resume("remote");
-            const stillLocal = mine?.gate.state().local;
-            dispatch(
-              stillLocal
-                ? { type: "paused", transferId: msg.transferId, by: "local" }
-                : { type: "resumed", transferId: msg.transferId },
-            );
+            dispatch({ type: "resumed", transferId: msg.transferId, by: "remote" });
           }
           return;
         }
@@ -280,12 +275,7 @@ export function useWebRTC(
     }
     mine?.gate.resume("local");
     tell("transfer-resume");
-    const stillRemote = mine?.gate.state().remote;
-    dispatch(
-      stillRemote
-        ? { type: "paused", transferId, by: "remote" }
-        : { type: "resumed", transferId },
-    );
+    dispatch({ type: "resumed", transferId, by: "local" });
   }
 
   function disconnect(peerId: string) {

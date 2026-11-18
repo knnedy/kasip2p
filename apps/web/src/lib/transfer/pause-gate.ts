@@ -20,6 +20,5 @@ export function createPauseGate() {
     wait(): Promise<void> {
       return open() ? Promise.resolve() : new Promise((r) => waiters.push(r));
     },
-    state: () => ({ ...paused }),
   };
 }

@@ -62,12 +62,15 @@ function ActiveTransfer({
 }) {
   const sending = t.direction === "sending";
   const fraction = t.totalBytes > 0 ? t.transferredBytes / t.totalBytes : 1;
+  const pausedHere = t.pausedBy === "local" || t.pausedBy === "both";
   const status =
-    t.pausedBy === "remote"
-      ? `Paused by ${peerName}`
-      : t.pausedBy === "local"
-        ? "Paused"
-        : [formatSpeed(t.speedMBps), etaFor(t) && `${etaFor(t)} left`].filter(Boolean).join(" · ");
+    t.pausedBy === "both"
+      ? `Paused by you and ${peerName}`
+      : t.pausedBy === "remote"
+        ? `Paused by ${peerName}`
+        : t.pausedBy === "local"
+          ? "Paused"
+          : [formatSpeed(t.speedMBps), etaFor(t) && `${etaFor(t)} left`].filter(Boolean).join(" · ");
 
   return (
     <li className="enter flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
@@ -86,10 +89,10 @@ function ActiveTransfer({
         </div>
         <button
           type="button"
-          onClick={() => onControl(t.pausedBy === "local" ? "resume" : "pause")}
-          aria-label={`${t.pausedBy === "local" ? "Resume" : "Pause"} ${t.fileName}`}
+          onClick={() => onControl(pausedHere ? "resume" : "pause")}
+          aria-label={`${pausedHere ? "Resume" : "Pause"} ${t.fileName}`}
           className={iconButton}>
-          {t.pausedBy === "local" ? <Play className="size-4" /> : <Pause className="size-4" />}
+          {pausedHere ? <Play className="size-4" /> : <Pause className="size-4" />}
         </button>
         <button
           type="button"
