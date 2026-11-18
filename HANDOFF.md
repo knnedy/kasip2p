@@ -1,7 +1,7 @@
 # HANDOFF
 
 Working log for the staged refactor. Stages 1–3 merged into `main` (e8a1a82).
-Current: phone send slowdown on `fix/phone-send-speed` (branched from unmerged `chore/cleanup`).
+Current: on `main` (user's choice); phone send slowdown fixes await a device retest.
 
 ## Stage 4 decisions
 
@@ -39,6 +39,7 @@ Current: phone send slowdown on `fix/phone-send-speed` (branched from unmerged `
 - [x] 35. chore(web): remove unused shadcn button
 - [x] 36. fix(web): keep the screen on during transfers (bench: --phone, --cpu, per-quarter speed)
 - [x] 37. fix(web): show current speed, not the average since start
+- [x] 38. ci: actions on Node 24, runner pinned to ubuntu-24.04
 
 ## Stage 3 decisions
 
@@ -92,7 +93,7 @@ Current: phone send slowdown on `fix/phone-send-speed` (branched from unmerged `
 
 ## Half-done files
 
-- needs device retest: phone→laptop 133MB; if speed still collapses with screen on, next suspect is Android reading the picked video (try a file from Downloads); chore/cleanup + this branch unmerged; Render dashboard: set ALLOWED_ORIGINS
+- needs device retest: phone→laptop 133MB; if speed still collapses with screen on, next suspect is Android reading the picked video (try a file from Downloads); Render dashboard: set ALLOWED_ORIGINS
 
 ## Stage 2 (done, merged)
 
