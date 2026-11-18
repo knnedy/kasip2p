@@ -193,28 +193,50 @@ export default function PairPage() {
               <label htmlFor="pin" className="sr-only">
                 Pairing code
               </label>
-              <input
-                id="pin"
-                ref={pinInputRef}
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                autoFocus
-                maxLength={PIN_LENGTH}
-                placeholder={"0".repeat(PIN_LENGTH)}
-                value={enteredPin}
-                aria-invalid={pinError || undefined}
-                aria-describedby={pinError ? "pin-error" : undefined}
-                onChange={(e) => {
-                  dispatch({ type: "pin-edited" });
-                  setEnteredPin(e.target.value.replace(/\D/g, ""));
-                }}
-                onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
-                className={cn(
-                  "h-16 w-full rounded-2xl border bg-card text-center font-mono text-3xl font-semibold tracking-[0.5em] text-foreground outline-none transition-colors placeholder:text-muted-foreground/40 focus:border-you",
-                  pinError ? "border-destructive" : "border-muted-foreground/60",
-                )}
-              />
+              {/* one real input (paste, SMS autofill, one field for screen readers) drawn as boxes */}
+              <div className="group relative">
+                <input
+                  id="pin"
+                  ref={pinInputRef}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  autoFocus
+                  maxLength={PIN_LENGTH}
+                  value={enteredPin}
+                  aria-invalid={pinError || undefined}
+                  aria-describedby={pinError ? "pin-error" : undefined}
+                  onChange={(e) => {
+                    dispatch({ type: "pin-edited" });
+                    setEnteredPin(e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH));
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
+                  className="absolute inset-0 h-full w-full cursor-text caret-transparent opacity-0"
+                />
+                <div aria-hidden="true" className="pointer-events-none flex justify-between gap-2">
+                  {Array.from({ length: PIN_LENGTH }, (_, i) => {
+                    // the box the next digit goes in; CSS shows the cursor only while focused
+                    const current = i === Math.min(enteredPin.length, PIN_LENGTH - 1);
+                    return (
+                      <span
+                        key={i}
+                        className={cn(
+                          "flex h-16 flex-1 items-center justify-center rounded-2xl border bg-card font-mono text-3xl font-semibold text-foreground transition-colors",
+                          pinError
+                            ? "border-destructive"
+                            : current
+                              ? "border-muted-foreground/60 group-has-[input:focus]:border-you group-has-[input:focus]:ring-2 group-has-[input:focus]:ring-you/30"
+                              : "border-muted-foreground/60",
+                        )}>
+                        {enteredPin[i] ??
+                          (current && (
+                            <span className="hidden h-7 w-0.5 rounded-full bg-you group-has-[input:focus]:block motion-safe:animate-pulse" />
+                          ))}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
               {pinError && (
                 <p id="pin-error" className="text-sm text-destructive">
                   That code doesn&apos;t match. Check {them.name} and try again.

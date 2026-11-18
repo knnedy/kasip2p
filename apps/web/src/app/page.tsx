@@ -114,7 +114,7 @@ export default function Home() {
   );
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-10 px-4 pt-6 pb-8 sm:pt-10">
+    <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-10 px-4 pt-6 pb-10 sm:pt-10">
       <header className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <Wordmark />
@@ -159,7 +159,8 @@ export default function Home() {
         )}
       </section>
 
-      <footer className="mt-auto text-sm text-muted-foreground">
+      {/* follows the list instead of pinning to the bottom, which left a gap on phones */}
+      <footer className="text-sm text-muted-foreground">
         Files go straight from one device to the other. Nothing is uploaded.
       </footer>
     </main>

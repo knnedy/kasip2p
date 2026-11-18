@@ -3,8 +3,26 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, FolderUp, Pause, Play, Plus, X } from "lucide-react";
-import type { TransferProgress } from "@kasip2p/shared";
+import {
+  ArrowDown,
+  ArrowUp,
+  CircleCheck,
+  File,
+  FileArchive,
+  FileAudio,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  FileVideo,
+  FolderUp,
+  Pause,
+  Play,
+  Plus,
+  Upload,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+import type { TransferProgress, TransferRecord } from "@kasip2p/shared";
 import { getOrCreatePeerId } from "@/lib/peer-id";
 import { useWebRTC } from "@/hooks/use-webrtc";
 import { useConnectionInfo } from "@/hooks/use-connection-info";
@@ -27,6 +45,7 @@ import type { ConnectionInfo } from "@/lib/webrtc/connection-info";
 import { getTransfers } from "@/lib/store/idb";
 import { pairedPeers, signalingClient, peerNames } from "@/lib/signaling/ws-client";
 import { formatBytes, formatEta, formatSpeed } from "@/lib/format/format";
+import { fileKind, groupByDay, type FileKind } from "@/lib/format/history";
 import { cn } from "@/lib/utils";
 
 const MB = 1024 * 1024;
@@ -46,6 +65,22 @@ function connectionLabel(info: ConnectionInfo | null) {
 function etaFor(t: { totalBytes: number; transferredBytes: number; speedMBps: number }) {
   if (!(t.speedMBps > 0)) return null;
   return formatEta((t.totalBytes - t.transferredBytes) / (t.speedMBps * MB));
+}
+
+const KIND_ICON: Record<FileKind, LucideIcon> = {
+  image: FileImage,
+  video: FileVideo,
+  audio: FileAudio,
+  archive: FileArchive,
+  text: FileText,
+  sheet: FileSpreadsheet,
+  other: File,
+};
+
+// Plain words when nothing is moving, instead of a bare "—".
+function liveStatus(t: TransferProgress, peerName: string) {
+  if (t.speedMBps > 0) return [formatSpeed(t.speedMBps), etaFor(t) && `${etaFor(t)} left`].filter(Boolean).join(" · ");
+  return t.transferredBytes === 0 ? "Starting…" : `Waiting for ${peerName}…`;
 }
 
 const iconButton =
@@ -70,7 +105,7 @@ function ActiveTransfer({
         ? `Paused by ${peerName}`
         : t.pausedBy === "local"
           ? "Paused"
-          : [formatSpeed(t.speedMBps), etaFor(t) && `${etaFor(t)} left`].filter(Boolean).join(" · ");
+          : liveStatus(t, peerName);
 
   return (
     <li className="enter flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
@@ -128,6 +163,23 @@ function ActiveTransfer({
       </p>
     </li>
   );
+}
+
+const TOAST_MS = 4_000;
+
+// The newest record, if it finished while this page was open (not on first load).
+function useJustFinished(newest: TransferRecord | undefined) {
+  const [openedAt] = useState(() => Date.now());
+  const [dismissed, setDismissed] = useState<string | null>(null);
+  const fresh = newest && newest.completedAt >= openedAt ? newest : undefined;
+  const freshId = fresh?.id;
+  useEffect(() => {
+    if (!freshId) return;
+    navigator.vibrate?.(30); // phones: a light tap
+    const timer = setTimeout(() => setDismissed(freshId), TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [freshId]);
+  return fresh && fresh.id !== dismissed ? fresh : null;
 }
 
 export default function TransferPage() {
@@ -208,6 +260,7 @@ export default function TransferPage() {
   const failed = failedFor(targetId);
   const peerHistory = history.filter((h) => h.record.peerId === targetId);
   const pickFiles = () => fileInputRef.current?.click();
+  const justFinished = useJustFinished(peerHistory[0]?.record);
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-8 px-4 pt-4 pb-10">
@@ -255,7 +308,7 @@ export default function TransferPage() {
           ) : (
             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
               <p className="tabular font-display text-4xl font-bold tracking-tight font-stretch-expanded text-foreground">
-                {summary.paused ? "Paused" : formatSpeed(summary.speedMBps)}
+                {summary.paused ? "Paused" : summary.speedMBps > 0 ? formatSpeed(summary.speedMBps) : "Waiting…"}
               </p>
               <p className="tabular text-muted-foreground">
                 {Math.round((summary.progress ?? 0) * 100)}% done
@@ -278,12 +331,26 @@ export default function TransferPage() {
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
           className={cn(
-            "flex flex-col items-center gap-4 rounded-3xl border-2 border-dashed px-6 py-10 text-center transition-colors",
+            "flex flex-col items-center gap-4 rounded-3xl border-2 border-dashed px-6 text-center transition-colors",
+            // the page's main job while idle; compact once something is moving
+            summary.flow === "idle" ? "py-14" : "py-8",
             isDragging ? "border-you bg-you/5" : "border-border",
           )}>
-          <p className="font-medium text-foreground">
-            {isDragging ? `Drop to send to ${peerName}` : "Drop files or folders here"}
-          </p>
+          {summary.flow === "idle" && (
+            <span className="flex size-12 items-center justify-center rounded-full bg-you/12 text-you">
+              <Upload className="size-5" />
+            </span>
+          )}
+          <div className="flex flex-col gap-1">
+            <p className="font-medium text-foreground">
+              {isDragging ? `Drop to send to ${peerName}` : "Drop files or folders here"}
+            </p>
+            {summary.flow === "idle" && !isDragging && (
+              <p className="text-sm text-muted-foreground">
+                They go straight to {peerName}. Nothing is uploaded.
+              </p>
+            )}
+          </div>
           <div className="flex flex-wrap justify-center gap-2">
             <button
               type="button"
@@ -302,13 +369,20 @@ export default function TransferPage() {
           </div>
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={pickFiles}
-          className="press inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-you text-lg font-medium text-background">
-          <Plus className="size-5" />
-          Choose files
-        </button>
+        <div className="flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={pickFiles}
+            className="press inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-you text-lg font-medium text-background">
+            <Plus className="size-5" />
+            Choose files
+          </button>
+          {summary.flow === "idle" && (
+            <p className="text-center text-sm text-muted-foreground">
+              They go straight to {peerName}. Nothing is uploaded.
+            </p>
+          )}
+        </div>
       )}
       <input
         ref={fileInputRef}
@@ -353,34 +427,62 @@ export default function TransferPage() {
       {peerHistory.length > 0 && (
         <section className="flex flex-col gap-3">
           <SectionTitle>Earlier</SectionTitle>
-          <ul className="flex flex-col">
-            {peerHistory.map(({ record }) => {
-              const sent = record.direction === "sent";
-              return (
-                <li
-                  key={record.id}
-                  className="flex items-center gap-3 border-b border-border py-3 last:border-b-0">
-                  <span className={cn("shrink-0", sent ? "text-you" : "text-them")}>
-                    {sent ? <ArrowUp className="size-4" /> : <ArrowDown className="size-4" />}
-                    <span className="sr-only">{sent ? "Sent" : "Received"}</span>
-                  </span>
-                  <p className="min-w-0 flex-1 truncate text-foreground">{record.fileName}</p>
-                  <p className="tabular shrink-0 font-mono text-xs text-muted-foreground">
-                    {formatBytes(record.fileSize)} ·{" "}
-                    {new Date(record.completedAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                </li>
-              );
-            })}
-          </ul>
+          {groupByDay(peerHistory, (h) => h.record.completedAt).map((group) => (
+            <div key={group.label} className="flex flex-col">
+              <h3 className="pb-1 text-xs font-medium text-muted-foreground">{group.label}</h3>
+              <ul className="flex flex-col">
+                {group.items.map(({ record }) => (
+                  <HistoryRow key={record.id} record={record} />
+                ))}
+              </ul>
+            </div>
+          ))}
           {peerHistory.some(({ record }) => record.direction === "received") && (
             <p className="text-sm text-muted-foreground">Received files are in your Downloads.</p>
           )}
         </section>
       )}
+
+      {justFinished && <FinishedToast record={justFinished} peerName={peerName} />}
     </main>
+  );
+}
+
+function HistoryRow({ record }: { record: TransferRecord }) {
+  const sent = record.direction === "sent";
+  const Icon = KIND_ICON[fileKind(record.mimeType, record.fileName)];
+  return (
+    <li className="flex items-center gap-3 border-b border-border py-3 last:border-b-0">
+      <span
+        className={cn(
+          "flex size-9 shrink-0 items-center justify-center rounded-xl",
+          sent ? "bg-you/12 text-you" : "bg-them/12 text-them",
+        )}>
+        <Icon className="size-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-foreground">{record.fileName}</p>
+        <p className="tabular text-sm text-muted-foreground">
+          {sent ? "Sent" : "Received"} · {formatBytes(record.fileSize)} ·{" "}
+          {new Date(record.completedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </p>
+      </div>
+    </li>
+  );
+}
+
+// Brief confirmation once a file lands, so finishing isn't silent.
+function FinishedToast({ record, peerName }: { record: TransferRecord; peerName: string }) {
+  const sent = record.direction === "sent";
+  return (
+    <div
+      role="status"
+      className="sheet-enter fixed inset-x-4 bottom-4 z-40 mx-auto flex max-w-sm items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-xl shadow-black/20">
+      <CircleCheck className={cn("size-5 shrink-0", sent ? "text-you" : "text-them")} />
+      <div className="min-w-0">
+        <p className="font-medium text-foreground">{sent ? `Sent to ${peerName}` : "Saved to Downloads"}</p>
+        <p className="truncate text-sm text-muted-foreground">{record.fileName}</p>
+      </div>
+    </div>
   );
 }

@@ -43,7 +43,7 @@ export function PairRequestModal({ incoming, onDismiss }: Props) {
           <div className="min-w-0">
             <h2
               id="pair-request-title"
-              className="truncate font-display text-lg font-bold font-stretch-semi-expanded text-foreground">
+              className="font-display text-lg font-bold text-balance break-words font-stretch-semi-expanded text-foreground">
               {name} wants to pair
             </h2>
             <p className="text-sm text-muted-foreground">
