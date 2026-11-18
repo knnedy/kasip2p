@@ -60,6 +60,14 @@ export const transferCancelSchema = z.object({
   transferId: transferIdSchema,
   reason: z.string().max(200).optional(),
 });
+// Receiver → sender: bytes of this file received so far, so the sender shows delivered bytes.
+export const transferAckSchema = z.object({
+  type: z.literal("transfer-ack"),
+  transferId: transferIdSchema,
+  bytes: z.number().int().min(0),
+});
+export type TransferAck = z.infer<typeof transferAckSchema>;
+
 export type TransferControl =
   | z.infer<typeof transferPauseSchema>
   | z.infer<typeof transferResumeSchema>
@@ -71,6 +79,7 @@ export const peerMessageSchema = z.discriminatedUnion("type", [
   transferPauseSchema,
   transferResumeSchema,
   transferCancelSchema,
+  transferAckSchema,
 ]);
 export type PeerMessage = z.infer<typeof peerMessageSchema>;
 

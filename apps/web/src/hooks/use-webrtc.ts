@@ -5,7 +5,9 @@ import { peerManager } from "@/lib/webrtc/peer-manager";
 import {
   chooseChunkSize,
   createAcceptRegistry,
+  createDelivery,
   createReceiver,
+  type Delivery,
   sendFile,
 } from "@/lib/webrtc/chunk-utils";
 import { parsePeerMessage } from "@kasip2p/shared";
@@ -51,7 +53,10 @@ export function useWebRTC(
   // per outgoing transfer: abort on cancel, gate for either side's pause
   const [outgoing] = useState(
     () =>
-      new Map<string, { controller: AbortController; gate: ReturnType<typeof createPauseGate> }>(),
+      new Map<
+        string,
+        { controller: AbortController; gate: ReturnType<typeof createPauseGate>; delivery: Delivery }
+      >(),
   );
   // files of failed sends, kept so they can be queued again
   const [failedFiles] = useState(() => new Map<string, { peerId: string; file: File }>());
@@ -139,6 +144,14 @@ export function useWebRTC(
           return;
         }
         const mine = msg && "transferId" in msg ? outgoing.get(msg.transferId) : undefined;
+        // our send's progress is what the receiver confirms, not what we queued
+        if (msg?.type === "transfer-ack") {
+          if (mine) {
+            mine.delivery.ack(msg.bytes);
+            progress.report(msg.transferId, msg.bytes);
+          }
+          return;
+        }
         if (msg?.type === "transfer-cancel" && mine) {
           const reason = msg.reason ? `: ${msg.reason}` : "";
           mine.controller.abort(new TransferCancelled(`cancelled by receiver${reason}`));
@@ -201,7 +214,8 @@ export function useWebRTC(
 
     const controller = new AbortController();
     const gate = createPauseGate();
-    outgoing.set(transferId, { controller, gate });
+    const delivery = createDelivery();
+    outgoing.set(transferId, { controller, gate, delivery });
     try {
       // same transferId on every attempt, so the receiver resumes its partial
       await sendWithRetry(
@@ -214,13 +228,14 @@ export function useWebRTC(
             dc,
             file,
             transferId,
-            (transferredBytes) => progress.report(transferId, transferredBytes),
+            (offset) => progress.report(transferId, offset), // resume point only; acks do the rest
             chooseChunkSize(peerManager.getMaxMessageSize(targetId)),
             (id) => accepts.wait(id, targetId),
             controller.signal,
             undefined,
             () => gate.wait(),
             folder,
+            delivery,
           ),
       );
     } catch (err) {

@@ -5,7 +5,10 @@ import {
   DEFAULT_CHUNK_SIZE as CHUNK_SIZE,
   HIGH_WATER_MARK,
   LOW_WATER_MARK,
+  ACK_EVERY,
+  MIN_HIGH_WATER_MARK,
   createAcceptRegistry,
+  createDelivery,
   createReceiver,
   sendFile,
   type ChunkSink,
@@ -567,5 +570,91 @@ describe("pause and cancel", () => {
       transferId: "t",
       reason: "cancelled by you",
     });
+  });
+});
+
+describe("delivery", () => {
+  const acksIn = (replies: string[]) =>
+    replies.map((r) => JSON.parse(r)).filter((m) => m.type === "transfer-ack").map((m) => m.bytes);
+
+  it("the receiver acknowledges what it has received, regularly and at the end", async () => {
+    const replies: string[] = [];
+    const { handle: receive } = createReceiver(
+      { onStart() {}, onProgress() {}, onComplete() {} },
+      undefined,
+      (msg) => replies.push(msg),
+    );
+    const size = ACK_EVERY * 2 + 10;
+    receive(meta("t", size));
+    await flush();
+    for (let left = size; left > 0; left -= ACK_EVERY / 2) {
+      receive(new ArrayBuffer(Math.min(ACK_EVERY / 2, left)));
+    }
+    expect(acksIn(replies)).toEqual([ACK_EVERY, ACK_EVERY * 2, size]);
+  });
+
+  it("tracks delivered bytes forward only, with the recent rate", () => {
+    let now = 0;
+    const d = createDelivery(() => now);
+    expect(d.rate()).toBe(0);
+    d.ack(1000);
+    now = 1000;
+    d.ack(3000);
+    d.ack(2000); // late, out-of-date ack
+    expect(d.bytes).toBe(3000);
+    expect(d.rate()).toBe(2000); // bytes per second over the window
+  });
+
+  it("waits until the given bytes are delivered, or stops when aborted", async () => {
+    const d = createDelivery();
+    const reached = vi.fn();
+    void d.until(10).then(reached);
+    d.ack(5);
+    await flush();
+    expect(reached).not.toHaveBeenCalled();
+    d.ack(10);
+    await vi.waitFor(() => expect(reached).toHaveBeenCalled());
+
+    const controller = new AbortController();
+    const stopped = d.until(99, controller.signal);
+    controller.abort(new Error("cancelled"));
+    await expect(stopped).rejects.toThrow("cancelled");
+  });
+
+  it("keeps about a second of data queued on a slow link, so pause acts quickly", async () => {
+    const sink = new FakeSink();
+    const slow = { ...createDelivery(), rate: () => 300 * 1024 };
+    sink.bufferedAmount = 300 * 1024 + 1; // far below the fixed 2 MB mark
+    const done = sendFile(sink, makeFile(10), "t1", () => {}, undefined, undefined, undefined, undefined, undefined, undefined, slow);
+    await flush();
+    expect(sink.sent).toHaveLength(1); // held: 300 KB/s allows ~300 KB queued
+    expect(sink.bufferedAmountLowThreshold).toBe((300 * 1024) / 4);
+    sink.bufferedAmount = 0;
+    sink.emit("bufferedamountlow");
+    await flush();
+    expect(sink.sent).toHaveLength(2);
+    slow.ack(10);
+    await done;
+  });
+
+  it("starts with a small queue until acks reveal the link speed", async () => {
+    const sink = new FakeSink();
+    sink.bufferedAmount = MIN_HIGH_WATER_MARK + 1;
+    const delivery = createDelivery();
+    void sendFile(sink, makeFile(10), "t1", () => {}, undefined, undefined, undefined, undefined, undefined, undefined, delivery);
+    await flush();
+    expect(sink.sent).toHaveLength(1); // held, not filling a 2 MB queue blind
+  });
+
+  it("finishes a send only once the receiver has everything", async () => {
+    const sink = new FakeSink();
+    const delivery = createDelivery();
+    const finished = vi.fn();
+    void sendFile(sink, makeFile(10), "t1", () => {}, undefined, undefined, undefined, undefined, undefined, undefined, delivery).then(finished);
+    await flush();
+    expect(sink.sent).toHaveLength(2); // meta + all bytes handed over
+    expect(finished).not.toHaveBeenCalled();
+    delivery.ack(10);
+    await vi.waitFor(() => expect(finished).toHaveBeenCalled());
   });
 });

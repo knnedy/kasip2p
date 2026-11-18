@@ -63,6 +63,13 @@ describe("parsePeerMessage", () => {
     expect(parsePeerMessage(JSON.stringify({ ...accept, offset: -1 }))).toBeNull();
   });
 
+  it("parses transfer-ack and rejects negative or fractional byte counts", () => {
+    const ack = { type: "transfer-ack", transferId: "t1", bytes: 4096 };
+    expect(parsePeerMessage(JSON.stringify(ack))).toEqual(ack);
+    expect(parsePeerMessage(JSON.stringify({ ...ack, bytes: -1 }))).toBeNull();
+    expect(parsePeerMessage(JSON.stringify({ ...ack, bytes: 1.5 }))).toBeNull();
+  });
+
   it("parses pause, resume and cancel controls for a transfer", () => {
     for (const type of ["transfer-pause", "transfer-resume", "transfer-cancel"]) {
       const msg = { type, transferId: "t1" };

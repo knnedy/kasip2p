@@ -1,6 +1,8 @@
 // Two-browser transfer benchmark: drives the real app (prod build) in system Chrome.
 // Usage: pnpm bench [--size-mb 512] [--folder] [--headed] [--phone] [--cpu 6]. Needs ports 3001 and 3300 free.
 // --phone sends from a phone-sized Android page; --cpu slows the sender's CPU that many times.
+// --pause sender|receiver pauses mid-transfer on that side for 5s, then resumes.
+// --link-kbps 400 drains the sender's data channel at that rate, in order (slow Wi-Fi).
 // --folder sends a nested folder (size split across files) and checks the zip with python3.
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
@@ -145,6 +147,49 @@ async function rawChannelMBps(page: Page, sizeMb: number): Promise<number> {
   }, sizeMb * MB);
 }
 
+// Runs in the page: sends leave in order at bytesPerSec; bufferedAmount and
+// bufferedamountlow behave as on a congested link.
+function slowLink(bytesPerSec: number) {
+  const proto = RTCDataChannel.prototype;
+  const realSend = proto.send as (this: RTCDataChannel, data: string | ArrayBuffer) => void;
+  const realBuffered = Object.getOwnPropertyDescriptor(proto, "bufferedAmount")!.get!;
+  const queues = new WeakMap<RTCDataChannel, { items: (string | ArrayBuffer)[]; bytes: number }>();
+  const size = (d: string | ArrayBuffer) => (typeof d === "string" ? d.length : d.byteLength);
+  Object.defineProperty(proto, "bufferedAmount", {
+    get(this: RTCDataChannel) {
+      return realBuffered.call(this) + (queues.get(this)?.bytes ?? 0);
+    },
+  });
+  proto.send = function (this: RTCDataChannel, data: string | ArrayBuffer) {
+    let q = queues.get(this);
+    if (!q) {
+      q = { items: [], bytes: 0 };
+      queues.set(this, q);
+      let budget = 0;
+      let last = performance.now();
+      let above = false; // Chrome's own buffer lags a tick, so track crossings across ticks
+      const pump = setInterval(() => {
+        if (this.readyState === "closed") return clearInterval(pump);
+        const now = performance.now();
+        budget = Math.min(budget + ((now - last) / 1000) * bytesPerSec, 512 * 1024);
+        last = now;
+        while (q!.items.length && size(q!.items[0]!) <= Math.max(budget, 0) + 1) {
+          const item = q!.items.shift()!;
+          q!.bytes -= size(item);
+          budget -= size(item);
+          realSend.call(this, item);
+        }
+        const low = this.bufferedAmountLowThreshold;
+        const amount = this.bufferedAmount;
+        if (above && amount <= low) this.dispatchEvent(new Event("bufferedamountlow"));
+        above = amount > low;
+      }, 10);
+    }
+    q.items.push(data);
+    q.bytes += size(data);
+  } as typeof proto.send;
+}
+
 async function peerIdOf(page: Page) {
   await page.waitForFunction(() => localStorage.getItem("kasip2p-peer-id"));
   return page.evaluate(() => localStorage.getItem("kasip2p-peer-id")!);
@@ -196,6 +241,8 @@ async function main() {
         return lock;
       };
     });
+    const linkKbps = opt("--link-kbps", 0);
+    if (linkKbps > 0) await sender.addInitScript(slowLink, linkKbps * 1024);
     for (const page of [sender, receiver]) {
       page.on("console", (m) => m.type() === "error" && console.error(`[browser] ${m.text()}`));
       await page.goto(APP);
@@ -241,12 +288,35 @@ async function main() {
     }, 250);
 
     const downloadStarted = receiver.waitForEvent("download", { timeout: 10 * 60_000 });
+    const finishBy = opt("--timeout-s", 600) * 1000;
     const t0 = performance.now();
     const input = folderMode ? "input[webkitdirectory]" : 'input[type="file"][multiple]';
     await sender.locator(input).setInputFiles(file);
     const download = await downloadStarted;
+    const pauseOn = args.includes("--pause") ? args[args.indexOf("--pause") + 1] : null;
+    if (pauseOn) {
+      const page = pauseOn === "receiver" ? receiver : sender;
+      await sleep(1500);
+      // receiver's byte count, from the "x MB of y MB" line under its progress bar
+      const received = async () =>
+        (await receiver.locator("p.tabular.font-mono").first().textContent())?.split(" of ")[0] ?? "?";
+      await page.getByRole("button", { name: /^Pause / }).click();
+      const atPause = await received();
+      await sleep(5000);
+      const after5s = await received();
+      await page.getByRole("button", { name: /^Resume / }).click();
+      await sleep(3000);
+      const senderStatus = await sender.locator("p.tabular.truncate").first().textContent().catch(() => "gone");
+      console.log(`paused on the ${pauseOn} for 5s: receiver had ${atPause}, then ${after5s}`);
+      console.log(`sender 3s after resume: ${senderStatus}`);
+    }
     const tFirst = performance.now();
-    const savedPath = await download.path();
+    const savedPath = await Promise.race([
+      download.path(),
+      sleep(finishBy).then(() => {
+        throw new Error(`transfer did not finish within ${finishBy / 1000}s`);
+      }),
+    ]);
     const tDone = performance.now();
     clearInterval(sampling);
     const lockLog = await sender.evaluate(() => (window as unknown as { __screenLock: string[] }).__screenLock);

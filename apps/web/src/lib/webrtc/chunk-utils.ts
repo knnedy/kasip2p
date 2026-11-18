@@ -11,6 +11,11 @@ export const DEFAULT_CHUNK_SIZE = 64 * 1024;
 const MAX_CHUNK_SIZE = 256 * 1024;
 export const HIGH_WATER_MARK = 2 * 1024 * 1024;
 export const LOW_WATER_MARK = 512 * 1024;
+// On slow links the queue shrinks to ~1s of data, so pause and cancel act quickly.
+export const MIN_HIGH_WATER_MARK = 256 * 1024;
+// The receiver acknowledges at least this often (and at the end of each file).
+export const ACK_EVERY = 128 * 1024;
+const RATE_WINDOW_MS = 2_000;
 // Disk reads happen per block, prefetched while the previous block is sent.
 export const READ_BLOCK_SIZE = 4 * 1024 * 1024;
 
@@ -36,6 +41,54 @@ export function chooseChunkSize(maxMessageSize: number | undefined): number {
   if (!maxMessageSize || !Number.isFinite(maxMessageSize)) return DEFAULT_CHUNK_SIZE;
   return Math.min(MAX_CHUNK_SIZE, maxMessageSize);
 }
+
+// What the receiver has confirmed for one file, fed by its transfer-ack messages.
+export function createDelivery(now: () => number = () => performance.now()) {
+  let bytes = 0;
+  let samples: { at: number; bytes: number }[] = [];
+  const waiters = new Set<() => void>();
+  return {
+    get bytes() {
+      return bytes;
+    },
+    ack(received: number) {
+      if (received <= bytes) return;
+      bytes = received;
+      const at = now();
+      samples = [...samples.filter((s) => s.at > at - RATE_WINDOW_MS), { at, bytes }];
+      waiters.forEach((w) => w());
+    },
+    // bytes per second confirmed recently; 0 until there are two acks to compare
+    rate() {
+      const first = samples[0];
+      const last = samples.at(-1);
+      if (!first || !last || last.at === first.at) return 0;
+      return (last.bytes - first.bytes) / ((last.at - first.at) / 1000);
+    },
+    until(target: number, signal?: AbortSignal): Promise<void> {
+      return new Promise((resolve, reject) => {
+        const check = () => {
+          if (bytes < target) return;
+          done();
+          resolve();
+        };
+        const onAbort = () => {
+          done();
+          reject(signal?.reason);
+        };
+        const done = () => {
+          waiters.delete(check);
+          signal?.removeEventListener("abort", onAbort);
+        };
+        if (signal?.aborted) return reject(signal.reason);
+        waiters.add(check);
+        signal?.addEventListener("abort", onAbort);
+        check();
+      });
+    },
+  };
+}
+export type Delivery = ReturnType<typeof createDelivery>;
 
 // Resolves once the send buffer drains below the low-water mark; rejects on close or abort.
 function drained(sink: ChunkSink, signal?: AbortSignal): Promise<void> {
@@ -74,6 +127,7 @@ export async function sendFile(
   readBlockSize = READ_BLOCK_SIZE,
   gate?: () => Promise<void>, // resolves while unpaused; checked before each chunk
   folder?: FolderPart,
+  delivery?: Delivery, // receiver's acks: sizes the queue and confirms the end
 ) {
   sink.bufferedAmountLowThreshold = LOW_WATER_MARK;
   const accepted = waitForAccept(transferId); // registered before file-meta goes out
@@ -91,6 +145,7 @@ export async function sendFile(
   let offset = await accepted;
   if (offset > file.size) throw new Error(`receiver offset ${offset} beyond file size`);
   if (offset > 0) onProgress(offset);
+  delivery?.ack(offset); // the receiver already holds this much
   // whole chunks per block, so chunk boundaries match the unbuffered layout
   const block = Math.max(chunkSize, Math.floor(readBlockSize / chunkSize) * chunkSize);
   const read = (from: number) => file.slice(from, Math.min(from + block, file.size)).arrayBuffer();
@@ -105,7 +160,12 @@ export async function sendFile(
       if (gate) await gate();
       signal?.throwIfAborted();
       if (sink.readyState !== "open") throw new Error("data channel closed");
-      if (sink.bufferedAmount > HIGH_WATER_MARK) {
+      // about a second of data in flight; small until acks reveal the link speed
+      const high = delivery
+        ? Math.min(HIGH_WATER_MARK, Math.max(MIN_HIGH_WATER_MARK, delivery.rate()))
+        : HIGH_WATER_MARK;
+      if (sink.bufferedAmount > high) {
+        sink.bufferedAmountLowThreshold = high / 4;
         await drained(sink, signal);
         continue;
       }
@@ -113,9 +173,23 @@ export async function sendFile(
       sink.send(chunk);
       at += chunk.byteLength;
       offset += chunk.byteLength;
-      onProgress(offset);
+      if (!delivery) onProgress(offset); // with acks, progress is what was delivered
     }
   }
+  // handed over is not delivered: done once the receiver confirms every byte
+  if (delivery) await untilDelivered(sink, delivery, file.size, signal);
+}
+
+function untilDelivered(sink: ChunkSink, delivery: Delivery, size: number, signal?: AbortSignal) {
+  const stop = new AbortController();
+  const onClose = () => stop.abort(new Error("data channel closed"));
+  const onAbort = () => stop.abort(signal?.reason);
+  sink.addEventListener("close", onClose);
+  signal?.addEventListener("abort", onAbort);
+  return delivery.until(size, stop.signal).finally(() => {
+    sink.removeEventListener("close", onClose);
+    signal?.removeEventListener("abort", onAbort);
+  });
 }
 
 export const ACCEPT_TIMEOUT_MS = 10_000;
@@ -183,6 +257,7 @@ interface Incoming {
   writes: Promise<void>; // chained so chunks hit the store strictly in order
   pending: ArrayBuffer[]; // not yet handed to the store
   pendingBytes: number;
+  acked: number; // last count sent back in transfer-ack
   failed: boolean;
 }
 
@@ -264,12 +339,14 @@ export function createReceiver(
       writes: Promise.resolve(),
       pending: [],
       pendingBytes: 0,
+      acked: 0,
       failed: false,
     };
     current = incoming;
     // tell the sender where to start; a resumed file skips what we already hold
     incoming.writes = incoming.store.then((store) => {
       incoming.received += store.offset;
+      incoming.acked = store.offset; // the sender learns it from file-accept
       reply(JSON.stringify({ type: "file-accept", transferId: meta.transferId, offset: store.offset }));
       callbacks.onStart(meta, store.offset);
       completeIfDone(incoming);
@@ -305,6 +382,10 @@ export function createReceiver(
     incoming.pendingBytes += data.byteLength;
     if (incoming.pendingBytes >= batchBytes) flush(incoming);
     callbacks.onProgress(incoming.meta, incoming.received);
+    if (incoming.received - incoming.acked >= ACK_EVERY || incoming.received >= incoming.meta.size) {
+      incoming.acked = incoming.received;
+      reply(JSON.stringify({ type: "transfer-ack", transferId: incoming.meta.transferId, bytes: incoming.received }));
+    }
     completeIfDone(incoming);
   }
 
