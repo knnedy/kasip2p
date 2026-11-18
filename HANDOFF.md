@@ -26,7 +26,7 @@ Current: Stage 4 (UI/UX) on `feat/stage4-polish`.
 - [x] 24. feat(web): wire component for the connection between two devices
 - [x] 25. feat(web): redesign home around nearby devices
 - [x] 26. feat(web): redesign pairing
-- [ ] 27. feat(web): redesign the transfer page around the wire
+- [x] 27. feat(web): redesign the transfer page around the wire
 - [ ] 28. style(web): motion pass with reduced-motion support
 - [ ] 29. fix(web): accessibility pass, then merge (before/after screenshots)
 
@@ -78,13 +78,12 @@ Current: Stage 4 (UI/UX) on `feat/stage4-polish`.
 
 ## Next 3 steps
 
-1. feat(web): redesign the transfer page around the wire
-2. style(web): motion pass with reduced-motion support
-3. fix(web): accessibility pass, then merge (before/after screenshots)
+1. style(web): motion pass with reduced-motion support
+2. fix(web): accessibility pass, then merge (before/after screenshots)
 
 ## Half-done files
 
-- pairing redesigned (QR removed: no scanner existed); transfer page next; pinned phone slowdown; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
+- all screens redesigned; motion pass and a11y pass next; pinned phone slowdown; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
 
 ## Stage 2 (done, merged)
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { ArrowUp, Folder, ListOrdered, X } from "lucide-react";
+import { ArrowUp, Folder, X } from "lucide-react";
+import { SectionTitle } from "@/components/section-title";
 import type { createSendQueue } from "@/lib/transfer/send-queue";
 import { formatBytes } from "@/lib/format/format";
 
@@ -38,60 +39,57 @@ export function QueuedFiles({ queue, peerId }: { queue: SendQueue; peerId: strin
   }
   const firstLoose = waiting.find((i) => !i.folder)?.id;
 
+  const iconButton =
+    "flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent";
+  const row = "flex min-h-14 items-center gap-3 border-b border-border py-1 last:border-b-0";
+
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <ListOrdered className="h-3.5 w-3.5 text-muted-foreground" />
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-          Up next · {waiting.length} file{waiting.length > 1 ? "s" : ""} · {formatBytes(totalBytes)}
-        </p>
-      </div>
-      <ol className="flex flex-col gap-1.5">
-        {rows.map((row) =>
-          row.kind === "folder" ? (
-            <li
-              key={row.id}
-              className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5">
-              <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <p className="min-w-0 flex-1 truncate text-sm text-foreground">{row.name}/</p>
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {row.files} file{row.files > 1 ? "s" : ""} · {formatBytes(row.bytes)}
+    <section className="flex flex-col gap-3">
+      <SectionTitle>
+        Up next · {waiting.length} file{waiting.length > 1 ? "s" : ""} · {formatBytes(totalBytes)}
+      </SectionTitle>
+      <ol className="flex flex-col">
+        {rows.map((row_) =>
+          row_.kind === "folder" ? (
+            <li key={row_.id} className={row}>
+              <Folder className="size-4 shrink-0 text-muted-foreground" />
+              <p className="min-w-0 flex-1 truncate text-foreground">{row_.name}/</p>
+              <span className="tabular shrink-0 font-mono text-xs text-muted-foreground">
+                {row_.files} file{row_.files > 1 ? "s" : ""} · {formatBytes(row_.bytes)}
               </span>
               <button
                 type="button"
-                onClick={() => queue.removeFolder(row.id)}
-                aria-label={`Remove folder ${row.name} from the queue`}
-                className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground">
-                <X className="h-3.5 w-3.5" />
+                onClick={() => queue.removeFolder(row_.id)}
+                aria-label={`Remove folder ${row_.name} from the queue`}
+                className={iconButton}>
+                <X className="size-4" />
               </button>
             </li>
           ) : (
-            <li
-              key={row.item.id}
-              className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5">
-              <p className="min-w-0 flex-1 truncate text-sm text-foreground">{row.item.file.name}</p>
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {formatBytes(row.item.file.size)}
+            <li key={row_.item.id} className={row}>
+              <p className="min-w-0 flex-1 truncate text-foreground">{row_.item.file.name}</p>
+              <span className="tabular shrink-0 font-mono text-xs text-muted-foreground">
+                {formatBytes(row_.item.file.size)}
               </span>
               <button
                 type="button"
-                onClick={() => queue.move(row.item.id, -1)}
-                disabled={row.item.id === firstLoose}
-                aria-label={`Move ${row.item.file.name} up`}
-                className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30">
-                <ArrowUp className="h-3.5 w-3.5" />
+                onClick={() => queue.move(row_.item.id, -1)}
+                disabled={row_.item.id === firstLoose}
+                aria-label={`Move ${row_.item.file.name} up`}
+                className={iconButton}>
+                <ArrowUp className="size-4" />
               </button>
               <button
                 type="button"
-                onClick={() => queue.remove(row.item.id)}
-                aria-label={`Remove ${row.item.file.name} from the queue`}
-                className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground">
-                <X className="h-3.5 w-3.5" />
+                onClick={() => queue.remove(row_.item.id)}
+                aria-label={`Remove ${row_.item.file.name} from the queue`}
+                className={iconButton}>
+                <X className="size-4" />
               </button>
             </li>
           ),
         )}
       </ol>
-    </div>
+    </section>
   );
 }

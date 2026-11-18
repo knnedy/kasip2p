@@ -2,48 +2,128 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowDown, ArrowUp, FolderUp, Pause, Play, Plus, X } from "lucide-react";
+import type { TransferProgress } from "@kasip2p/shared";
 import { getOrCreatePeerId } from "@/lib/peer-id";
 import { useWebRTC } from "@/hooks/use-webrtc";
 import { useConnectionInfo } from "@/hooks/use-connection-info";
+import { useCanPickFolders } from "@/hooks/use-can-pick-folders";
+import { useThisDevice } from "@/hooks/use-this-device";
+import { usePeers } from "@/hooks/use-peers";
 import { QueuedFiles } from "@/components/queued-files";
 import { FailedTransfers } from "@/components/failed-transfers";
+import { SectionTitle } from "@/components/section-title";
+import { TopBar } from "@/components/top-bar";
+import { Wire } from "@/components/wire/wire";
+import { summarizeWire } from "@/components/wire/wire-state";
 import {
   collectEntries,
   pickedFromInput,
   planOutgoing,
   type EntryLike,
 } from "@/lib/transfer/folders";
-import { useCanPickFolders } from "@/hooks/use-can-pick-folders";
 import type { ConnectionInfo } from "@/lib/webrtc/connection-info";
-import { usePeers } from "@/hooks/use-peers";
 import { getTransfers } from "@/lib/store/idb";
 import { pairedPeers, signalingClient, peerNames } from "@/lib/signaling/ws-client";
-import {
-  ArrowLeft,
-  Upload,
-  Zap,
-  CheckCircle,
-  Clock,
-  FolderUp,
-  Pause,
-  Play,
-  X,
-} from "lucide-react";
-import { OsIcon } from "@/components/os-icon";
-import { formatBytes, formatSpeed } from "@/lib/format/format";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { formatBytes, formatEta, formatSpeed } from "@/lib/format/format";
+import { cn } from "@/lib/utils";
+
+const MB = 1024 * 1024;
 
 const ROUTE_LABEL: Record<ConnectionInfo["route"], string> = {
-  local: "Direct · local network",
-  internet: "Direct · over the internet",
-  relay: "Relayed (slower)",
+  local: "Direct · your network",
+  internet: "Direct · internet",
+  relay: "Relayed · slower",
   unknown: "Connecting…",
 };
 
 function connectionLabel(info: ConnectionInfo | null) {
-  if (!info) return ROUTE_LABEL.unknown;
-  const rtt = info.rttMs !== null && info.route !== "unknown" ? ` · ${info.rttMs} ms` : "";
-  return ROUTE_LABEL[info.route] + rtt;
+  if (!info || info.route === "unknown") return ROUTE_LABEL.unknown;
+  return ROUTE_LABEL[info.route] + (info.rttMs !== null ? ` · ${info.rttMs} ms` : "");
+}
+
+function etaFor(t: { totalBytes: number; transferredBytes: number; speedMBps: number }) {
+  if (!(t.speedMBps > 0)) return null;
+  return formatEta((t.totalBytes - t.transferredBytes) / (t.speedMBps * MB));
+}
+
+const iconButton =
+  "flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground";
+
+function ActiveTransfer({
+  t,
+  peerName,
+  onControl,
+}: {
+  t: TransferProgress;
+  peerName: string;
+  onControl(action: "pause" | "resume" | "cancel"): void;
+}) {
+  const sending = t.direction === "sending";
+  const fraction = t.totalBytes > 0 ? t.transferredBytes / t.totalBytes : 1;
+  const status =
+    t.pausedBy === "remote"
+      ? `Paused by ${peerName}`
+      : t.pausedBy === "local"
+        ? "Paused"
+        : [formatSpeed(t.speedMBps), etaFor(t) && `${etaFor(t)} left`].filter(Boolean).join(" · ");
+
+  return (
+    <li className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-center gap-3">
+        <span
+          className={cn(
+            "flex size-9 shrink-0 items-center justify-center rounded-full",
+            sending ? "bg-you/12 text-you" : "bg-them/12 text-them",
+          )}
+          aria-label={sending ? "Sending" : "Receiving"}>
+          {sending ? <ArrowUp className="size-4" /> : <ArrowDown className="size-4" />}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium text-foreground">{t.fileName}</p>
+          <p className="tabular truncate text-sm text-muted-foreground">{status}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onControl(t.pausedBy === "local" ? "resume" : "pause")}
+          aria-label={`${t.pausedBy === "local" ? "Resume" : "Pause"} ${t.fileName}`}
+          className={iconButton}>
+          {t.pausedBy === "local" ? <Play className="size-4" /> : <Pause className="size-4" />}
+        </button>
+        <button
+          type="button"
+          onClick={() => onControl("cancel")}
+          aria-label={`Cancel ${t.fileName}`}
+          className={cn(iconButton, "-mr-2")}>
+          <X className="size-4" />
+        </button>
+      </div>
+      <div
+        className="h-1.5 overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-label={`${t.fileName} progress`}
+        aria-valuenow={Math.round(fraction * 100)}
+        aria-valuemin={0}
+        aria-valuemax={100}>
+        {/* fill is coloured by the sending end */}
+        <div
+          className={cn(
+            "h-full origin-left rounded-full transition-transform duration-300 ease-out-strong",
+            sending ? "bg-you" : "bg-them",
+            t.pausedBy && "opacity-50",
+          )}
+          style={{ transform: `scaleX(${fraction})` }}
+        />
+      </div>
+      <p className="tabular flex justify-between font-mono text-xs text-muted-foreground">
+        <span>
+          {formatBytes(t.transferredBytes)} of {formatBytes(t.totalBytes)}
+        </span>
+        <span>{Math.round(fraction * 100)}%</span>
+      </p>
+    </li>
+  );
 }
 
 export default function TransferPage() {
@@ -56,12 +136,16 @@ export default function TransferPage() {
   const queryClient = useQueryClient();
   const { peers } = usePeers(localPeerId);
   const targetPeer = peers.find((p) => p.meta.peerId === targetId);
-  const peerName = targetPeer?.meta.name ?? peerNames.get(targetId) ?? "the other device";
+  const peerName = targetPeer?.meta.name ?? peerNames.get(targetId);
   const connection = useConnectionInfo(targetId);
+  const you = useThisDevice();
 
-  const { transfers, failedFor, retry, dismiss, queue, initiate, send, control } = useWebRTC(localPeerId, () => {
-    queryClient.invalidateQueries({ queryKey: ["transfers"] });
-  });
+  const { activeFor, failedFor, retry, dismiss, queue, initiate, send, control } = useWebRTC(
+    localPeerId,
+    () => {
+      queryClient.invalidateQueries({ queryKey: ["transfers"] });
+    },
+  );
 
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -90,7 +174,8 @@ export default function TransferPage() {
     queryFn: getTransfers,
   });
 
-  const canPickFolders = useCanPickFolders();
+  // fine pointer: desktop/laptop with drag and drop and folder picking
+  const desktop = useCanPickFolders();
 
   // Picker input: folder picks carry webkitRelativePath. Reset so a re-pick fires.
   function handlePicked(input: HTMLInputElement) {
@@ -114,47 +199,60 @@ export default function TransferPage() {
       .catch((err) => console.warn("could not read the dropped folder", err));
   }
 
-  const activeTransfers = transfers;
+  const active = activeFor(targetId);
+  const summary = summarizeWire(active);
+  const failed = failedFor(targetId);
   const peerHistory = history.filter((h) => h.record.peerId === targetId);
+  const pickFiles = () => fileInputRef.current?.click();
 
   return (
-    <main className="relative flex min-h-screen flex-col overflow-hidden bg-background">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(color-mix(in_oklab,var(--you)_3%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_oklab,var(--you)_3%,transparent)_1px,transparent_1px)] bg-size-[64px_64px]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_50%,transparent_40%,var(--background)_100%)]" />
+    <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-8 px-4 pt-4 pb-10">
+      <TopBar>
+        <p className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
+          <span
+            className={cn(
+              "size-1.5 rounded-full",
+              connection?.route === "relay"
+                ? "bg-them"
+                : connection && connection.route !== "unknown"
+                  ? "bg-you"
+                  : "bg-muted-foreground motion-safe:animate-pulse",
+            )}
+          />
+          {connectionLabel(connection)}
+        </p>
+      </TopBar>
 
-      <header className="relative z-10 flex items-center gap-4 border-b border-border px-6 py-4">
-        <button
-          onClick={() => router.push("/")}
-          className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back
-        </button>
-
-        {targetPeer && (
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-you/20 bg-you/5">
-              <OsIcon os={targetPeer.meta.os} size={16} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">
-                {targetPeer.meta.name}
+      <section className="flex flex-col gap-5" aria-label={`Connection to ${peerName}`}>
+        <Wire
+          you={you}
+          them={{ name: peerName, os: targetPeer?.meta.os }}
+          route={connection?.route ?? "unknown"}
+          summary={summary}
+        />
+        <div aria-live="polite">
+          {summary.flow === "idle" ? (
+            <p className="font-display text-2xl font-bold tracking-tight text-balance font-stretch-expanded text-foreground">
+              Ready to send to {peerName}
+            </p>
+          ) : (
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <p className="tabular font-display text-4xl font-bold tracking-tight font-stretch-expanded text-foreground">
+                {summary.paused ? "Paused" : formatSpeed(summary.speedMBps)}
               </p>
-              <p className="text-xs capitalize text-muted-foreground">
-                {targetPeer.meta.os}
+              <p className="tabular text-muted-foreground">
+                {Math.round((summary.progress ?? 0) * 100)}% done
+                {!summary.paused &&
+                  active.length === 1 &&
+                  etaFor(active[0]!) &&
+                  ` · ${etaFor(active[0]!)} left`}
               </p>
             </div>
-          </div>
-        )}
-
-        <div className="ml-auto flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-you" />
-          <span className="text-xs text-muted-foreground">
-            {connectionLabel(connection)}
-          </span>
+          )}
         </div>
-      </header>
+      </section>
 
-      <div className="relative z-10 flex flex-1 flex-col gap-6 p-6">
+      {desktop ? (
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -162,159 +260,113 @@ export default function TransferPage() {
           }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`flex cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed px-6 py-16 text-center transition-all duration-200 ${
-            isDragging
-              ? "border-you/60 bg-you/5"
-              : "border-border hover:border-you/30 hover:bg-you/2"
-          }`}>
-          <div
-            className={`flex h-14 w-14 items-center justify-center rounded-2xl border transition-colors ${
-              isDragging
-                ? "border-you/40 bg-you/10"
-                : "border-border bg-card"
-            }`}>
-            <Upload
-              className={`h-6 w-6 transition-colors ${isDragging ? "text-you" : "text-muted-foreground"}`}
-            />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">
-              {isDragging ? "Drop to send" : "Drag files here"}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {canPickFolders ? "files or folders" : "or tap to browse"} · any type · any size
-            </p>
-          </div>
-          {canPickFolders && (
+          className={cn(
+            "flex flex-col items-center gap-4 rounded-3xl border-2 border-dashed px-6 py-10 text-center transition-colors",
+            isDragging ? "border-you bg-you/5" : "border-border",
+          )}>
+          <p className="font-medium text-foreground">
+            {isDragging ? `Drop to send to ${peerName}` : "Drop files or folders here"}
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                folderInputRef.current?.click();
-              }}
-              className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted">
-              <FolderUp className="h-3.5 w-3.5" />
-              Send a folder
+              onClick={pickFiles}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-you px-5 font-medium text-background">
+              <Plus className="size-4" />
+              Choose files
             </button>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={(e) => handlePicked(e.currentTarget)}
-          />
-          <input
-            ref={folderInputRef}
-            type="file"
-            className="hidden"
-            {...{ webkitdirectory: "" }}
-            onChange={(e) => handlePicked(e.currentTarget)}
-          />
+            <button
+              type="button"
+              onClick={() => folderInputRef.current?.click()}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-5 font-medium text-foreground transition-colors hover:bg-muted">
+              <FolderUp className="size-4" />
+              Choose a folder
+            </button>
+          </div>
         </div>
+      ) : (
+        <button
+          type="button"
+          onClick={pickFiles}
+          className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-you text-lg font-medium text-background">
+          <Plus className="size-5" />
+          Choose files
+        </button>
+      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(e) => handlePicked(e.currentTarget)}
+      />
+      <input
+        ref={folderInputRef}
+        type="file"
+        className="hidden"
+        {...{ webkitdirectory: "" }}
+        onChange={(e) => handlePicked(e.currentTarget)}
+      />
 
-        <FailedTransfers
-          items={failedFor(targetId)}
-          peerName={peerName}
-          onRetry={retry}
-          onDismiss={dismiss}
-        />
+      {active.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <SectionTitle>Now</SectionTitle>
+          <ul className="flex flex-col gap-2">
+            {active.map((t) => (
+              <ActiveTransfer
+                key={t.transferId}
+                t={t}
+                peerName={peerName}
+                onControl={(action) => control(t.transferId, action)}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
 
-        <QueuedFiles queue={queue} peerId={targetId} />
+      {failed.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <SectionTitle>Didn&apos;t finish</SectionTitle>
+          <FailedTransfers items={failed} peerName={peerName} onRetry={retry} onDismiss={dismiss} />
+        </section>
+      )}
 
-        {activeTransfers.length > 0 && (
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <Zap className="h-3.5 w-3.5 text-you" />
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Transferring
-              </p>
-            </div>
-            {activeTransfers.map((t) => {
-              const pct = Math.round((t.transferredBytes / t.totalBytes) * 100);
+      <QueuedFiles queue={queue} peerId={targetId} />
+
+      {peerHistory.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <SectionTitle>Earlier</SectionTitle>
+          <ul className="flex flex-col">
+            {peerHistory.map(({ record }) => {
+              const sent = record.direction === "sent";
               return (
-                <div
-                  key={t.transferId}
-                  className="rounded-xl border border-you/15 bg-card p-4">
-                  <div className="mb-3 flex items-center justify-between gap-4">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {t.fileName}
-                    </p>
-                    <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
-                      <span>
-                        {t.pausedBy === "remote"
-                          ? "Paused by other device"
-                          : t.pausedBy === "local"
-                            ? "Paused"
-                            : formatSpeed(t.speedMBps)}
-                      </span>
-                      <span>{pct}%</span>
-                      <button
-                        type="button"
-                        onClick={() => control(t.transferId, t.pausedBy === "local" ? "resume" : "pause")}
-                        aria-label={`${t.pausedBy === "local" ? "Resume" : "Pause"} ${t.fileName}`}
-                        className="rounded-md p-1 transition-colors hover:text-foreground">
-                        {t.pausedBy === "local" ? (
-                          <Play className="h-3.5 w-3.5" />
-                        ) : (
-                          <Pause className="h-3.5 w-3.5" />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => control(t.transferId, "cancel")}
-                        aria-label={`Cancel ${t.fileName}`}
-                        className="rounded-md p-1 transition-colors hover:text-foreground">
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-you transition-all duration-300"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <div className="mt-2 flex justify-between text-[10px] text-muted-foreground">
-                    <span>{formatBytes(t.transferredBytes)}</span>
-                    <span>{formatBytes(t.totalBytes)}</span>
-                  </div>
-                </div>
+                <li
+                  key={record.id}
+                  className="flex items-center gap-3 border-b border-border py-3 last:border-b-0">
+                  <span className={cn("shrink-0", sent ? "text-you" : "text-them")}>
+                    {sent ? (
+                      <ArrowUp className="size-4" aria-label="Sent" />
+                    ) : (
+                      <ArrowDown className="size-4" aria-label="Received" />
+                    )}
+                  </span>
+                  <p className="min-w-0 flex-1 truncate text-foreground">{record.fileName}</p>
+                  <p className="tabular shrink-0 font-mono text-xs text-muted-foreground">
+                    {formatBytes(record.fileSize)} ·{" "}
+                    {new Date(record.completedAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </li>
               );
             })}
-          </div>
-        )}
-
-        {peerHistory.length > 0 && (
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                History
-              </p>
-            </div>
-            {peerHistory.map(({ record }) => (
-              <div
-                key={record.id}
-                className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3">
-                <CheckCircle className="h-4 w-4 shrink-0 text-you" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {record.fileName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatBytes(record.fileSize)} ·{" "}
-                    {record.direction === "sent" ? "sent" : "saved to Downloads"}{" "}
-                    ·{" "}
-                    {new Date(record.completedAt).toLocaleTimeString()}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+          </ul>
+          {peerHistory.some(({ record }) => record.direction === "received") && (
+            <p className="text-sm text-muted-foreground">Received files are in your Downloads.</p>
+          )}
+        </section>
+      )}
     </main>
   );
 }

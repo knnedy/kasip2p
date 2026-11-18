@@ -294,6 +294,8 @@ export function useWebRTC(
 
   const transfers = useMemo(() => activeTransfers(state), [state]);
 
+  const activeFor = (peerId: string) => activeTransfers(state, peerId);
+
   const failedFor = (peerId: string) =>
     failedTransfers(state, peerId).map((f) => ({ ...f, canRetry: failedFiles.has(f.transferId) }));
 
@@ -316,5 +318,5 @@ export function useWebRTC(
 
   const send = (targetId: string, outgoing: Outgoing[]) => queue.add(targetId, outgoing);
 
-  return { transfers, failedFor, retry, dismiss, queue, initiate, send, control, disconnect };
+  return { transfers, activeFor, failedFor, retry, dismiss, queue, initiate, send, control, disconnect };
 }
