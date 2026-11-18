@@ -1,5 +1,6 @@
 // Two-browser transfer benchmark: drives the real app (prod build) in system Chrome.
-// Usage: pnpm bench [--size-mb 512] [--folder] [--headed]. Needs ports 3001 and 3300 free.
+// Usage: pnpm bench [--size-mb 512] [--folder] [--headed] [--phone] [--cpu 6]. Needs ports 3001 and 3300 free.
+// --phone sends from a phone-sized Android page; --cpu slows the sender's CPU that many times.
 // --folder sends a nested folder (size split across files) and checks the zip with python3.
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
@@ -168,8 +169,33 @@ async function main() {
       args: ["--disable-features=WebRtcHideLocalIpsWithMdns"],
     });
     // two contexts = two devices (separate storage, peer ids, service workers)
-    const sender = await (await browser.newContext()).newPage();
+    const sender = await (
+      await browser.newContext(
+        flag("--phone")
+          ? {
+              viewport: { width: 390, height: 844 },
+              isMobile: true,
+              hasTouch: true,
+              userAgent:
+                "Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Mobile Safari/537.36",
+            }
+          : {},
+      )
+    ).newPage();
     const receiver = await (await browser.newContext({ acceptDownloads: true })).newPage();
+    // record whether the sender keeps the screen on (phones freeze pages once it turns off)
+    await sender.addInitScript(() => {
+      const w = window as unknown as { __screenLock: string[] };
+      w.__screenLock = [];
+      const real = navigator.wakeLock?.request.bind(navigator.wakeLock);
+      if (!real) return;
+      navigator.wakeLock.request = async (type) => {
+        const lock = await real(type);
+        w.__screenLock.push("held");
+        lock.addEventListener("release", () => w.__screenLock.push("released"));
+        return lock;
+      };
+    });
     for (const page of [sender, receiver]) {
       page.on("console", (m) => m.type() === "error" && console.error(`[browser] ${m.text()}`));
       await page.goto(APP);
@@ -198,6 +224,22 @@ async function main() {
       receiver.waitForURL(`**/transfer/${senderId}`),
     ]);
 
+    const cpu = opt("--cpu", 1);
+    if (cpu > 1) {
+      const cdp = await sender.context().newCDPSession(sender);
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: cpu });
+    }
+    // sender's progress over time, to show whether speed holds or collapses
+    const samples: [number, number][] = [];
+    const sampling = setInterval(() => {
+      void sender
+        .locator('[role="progressbar"]')
+        .first()
+        .getAttribute("aria-valuenow", { timeout: 200 })
+        .then((v) => v !== null && samples.push([performance.now(), Number(v)]))
+        .catch(() => {});
+    }, 250);
+
     const downloadStarted = receiver.waitForEvent("download", { timeout: 10 * 60_000 });
     const t0 = performance.now();
     const input = folderMode ? "input[webkitdirectory]" : 'input[type="file"][multiple]';
@@ -206,6 +248,11 @@ async function main() {
     const tFirst = performance.now();
     const savedPath = await download.path();
     const tDone = performance.now();
+    clearInterval(sampling);
+    const lockLog = await sender.evaluate(() => (window as unknown as { __screenLock: string[] }).__screenLock);
+    await sender.waitForTimeout(1500); // transfer leaves the active list, lock should go
+    const lockAfter = await sender.evaluate(() => (window as unknown as { __screenLock: string[] }).__screenLock);
+    samples.push([tDone, 100]);
 
     const bytes = statSync(savedPath).size;
     const intact = folderMode
@@ -224,6 +271,12 @@ async function main() {
     console.log(`streamed: ${tFirst - t0 < (tDone - t0) / 2 ? "yes" : "no (appeared at the end)"}`);
     console.log(`file intact: ${intact ? "yes" : `NO (${bytes} bytes)`}`);
     console.log(`app reaches ${((app / raw) * 100).toFixed(0)}% of the raw channel`);
+    // time to cross each 25% mark, from the sender's progress bar
+    const at = (pct: number) => samples.find(([, p]) => p >= pct)?.[0] ?? tDone;
+    const marks = [t0, at(25), at(50), at(75), tDone];
+    const quarters = marks.slice(1).map((t, i) => ((SIZE_MB / 4) / ((t - marks[i]!) / 1000)).toFixed(1));
+    console.log(`screen kept on while sending: ${lockLog[0] === "held" ? "yes" : "no"}; released after: ${lockAfter.at(-1) === "released" ? "yes" : "no"}`);
+    console.log(`MB/s per quarter: ${quarters.join(" → ")}${cpu > 1 ? ` (sender CPU ${cpu}× slower)` : ""}`);
     if (!intact) process.exitCode = 1;
   } finally {
     await browser?.close(); // before the servers, so pages don't log reconnect errors

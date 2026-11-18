@@ -1,7 +1,7 @@
 # HANDOFF
 
 Working log for the staged refactor. Stages 1–3 merged into `main` (e8a1a82).
-Current: cleanup on `chore/cleanup`, then the pinned phone send slowdown.
+Current: phone send slowdown on `fix/phone-send-speed` (branched from unmerged `chore/cleanup`).
 
 ## Stage 4 decisions
 
@@ -37,6 +37,8 @@ Current: cleanup on `chore/cleanup`, then the pinned phone send slowdown.
 - [x] 33. feat(web): light theme, dark by default, then merge
 - [x] 34. fix(web): keep both sides' pauses when both devices pause
 - [x] 35. chore(web): remove unused shadcn button
+- [x] 36. fix(web): keep the screen on during transfers (bench: --phone, --cpu, per-quarter speed)
+- [ ] 37. fix(web): show current speed, not the average since start
 
 ## Stage 3 decisions
 
@@ -86,11 +88,11 @@ Current: cleanup on `chore/cleanup`, then the pinned phone send slowdown.
 
 ## Next 3 steps
 
-1. Stage wrap-up: summarize and ask before next stage
+1. fix(web): show current speed, not the average since start
 
 ## Half-done files
 
-- next: phone slowdown (3 → 0.2 MB/s); Render dashboard: set ALLOWED_ORIGINS to the web origin
+- slowdown not reproducible on one machine (phone layout, CPU 20x: no collapse); top suspect: phone screen off freezes the page; device retest needed after 37; Render dashboard: set ALLOWED_ORIGINS
 
 ## Stage 2 (done, merged)
 

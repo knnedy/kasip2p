@@ -24,6 +24,7 @@ import { generateId } from "@/lib/utils";
 import { createSendQueue } from "@/lib/transfer/send-queue";
 import { createPauseGate } from "@/lib/transfer/pause-gate";
 import type { Outgoing } from "@/lib/transfer/folders";
+import { createWakeLock } from "@/lib/wake-lock";
 
 const REOPEN_TIMEOUT_MS = 30_000;
 
@@ -283,6 +284,24 @@ export function useWebRTC(
   }
 
   const transfers = useMemo(() => activeTransfers(state), [state]);
+  const busy = transfers.length > 0;
+
+  const wakeLock = useRef<ReturnType<typeof createWakeLock> | null>(null);
+  useEffect(() => {
+    const lock = createWakeLock({
+      request: "wakeLock" in navigator ? () => navigator.wakeLock.request("screen") : undefined,
+      visible: () => document.visibilityState === "visible",
+      onVisibilityChange(listener) {
+        document.addEventListener("visibilitychange", listener);
+        return () => document.removeEventListener("visibilitychange", listener);
+      },
+    });
+    wakeLock.current = lock;
+    return () => lock.dispose();
+  }, []);
+  useEffect(() => {
+    wakeLock.current?.set(busy);
+  }, [busy]);
 
   const activeFor = (peerId: string) => activeTransfers(state, peerId);
 
