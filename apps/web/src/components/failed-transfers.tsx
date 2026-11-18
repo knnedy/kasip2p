@@ -31,7 +31,7 @@ export function FailedTransfers({
         return (
           <li
             key={item.transferId}
-            className="flex items-center gap-3 rounded-2xl border border-destructive/30 bg-card py-2 pr-2 pl-4">
+            className="enter flex items-center gap-3 rounded-2xl border border-destructive/30 bg-card py-2 pr-2 pl-4">
             <AlertCircle className="size-4 shrink-0 text-destructive" />
             <div className="min-w-0 flex-1 py-1">
               <p className="truncate font-medium text-foreground">{item.fileName}</p>
@@ -44,7 +44,7 @@ export function FailedTransfers({
               <button
                 type="button"
                 onClick={() => onRetry(item.transferId)}
-                className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-border px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted">
+                className="press inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-border px-4 text-sm font-medium text-foreground hover:bg-muted">
                 <RotateCw className="size-4" />
                 Retry
               </button>
@@ -53,7 +53,7 @@ export function FailedTransfers({
               type="button"
               onClick={() => onDismiss(item.transferId)}
               aria-label={`Dismiss ${item.fileName}`}
-              className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+              className="press flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
               <X className="size-4" />
             </button>
           </li>

@@ -12,7 +12,7 @@ export function TopBar({ children }: { children?: React.ReactNode }) {
       <button
         type="button"
         onClick={() => router.push("/")}
-        className="-ml-2 inline-flex min-h-11 items-center gap-2 rounded-full px-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+        className="press -ml-2 inline-flex min-h-11 items-center gap-2 rounded-full px-2 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" />
         Devices
       </button>

@@ -159,14 +159,58 @@
   }
 }
 
-/* Safety net; components also drop their own motion under reduced motion. */
+/* Press feedback: every button answers a tap (scale, so other transforms survive). */
+@utility press {
+  transition-property: color, background-color, border-color, opacity, scale;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out-strong);
+  &:not(:disabled):active {
+    scale: 0.97;
+  }
+}
+
+/* Items arriving in a list: short rise and fade, interruptible (transitions, not keyframes). */
+@utility enter {
+  transition-property: opacity, translate;
+  transition-duration: 250ms;
+  transition-timing-function: var(--ease-out-strong);
+  @starting-style {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+
+/* Dialogs rise in; their backdrop only fades. */
+@utility sheet-enter {
+  transition-property: opacity, translate;
+  transition-duration: 300ms;
+  transition-timing-function: var(--ease-out-strong);
+  @starting-style {
+    opacity: 0;
+    translate: 0 24px;
+  }
+}
+@utility fade-enter {
+  transition: opacity 200ms ease;
+  @starting-style {
+    opacity: 0;
+  }
+}
+
+/* Reduced motion: no movement or ambient loops; fades stay because they explain change. */
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
   ::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  .press:active {
+    scale: none !important;
+  }
+  .enter,
+  .sheet-enter {
+    translate: none !important;
   }
 }

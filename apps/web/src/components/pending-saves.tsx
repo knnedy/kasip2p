@@ -18,7 +18,7 @@ export function PendingSaves() {
       {items.map((item) => (
         <div
           key={item.transferId}
-          className="flex w-full max-w-md items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-lg">
+          className="enter flex w-full max-w-md items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-lg">
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-foreground">{item.name}</p>
             <p className="text-xs text-muted-foreground">
@@ -29,7 +29,7 @@ export function PendingSaves() {
           <button
             type="button"
             onClick={() => item.save()}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted">
+            className="press flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted">
             <Download className="h-3.5 w-3.5" />
             Save file
           </button>

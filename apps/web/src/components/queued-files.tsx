@@ -40,8 +40,8 @@ export function QueuedFiles({ queue, peerId }: { queue: SendQueue; peerId: strin
   const firstLoose = waiting.find((i) => !i.folder)?.id;
 
   const iconButton =
-    "flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent";
-  const row = "flex min-h-14 items-center gap-3 border-b border-border py-1 last:border-b-0";
+    "press flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent";
+  const row = "enter flex min-h-14 items-center gap-3 border-b border-border py-1 last:border-b-0";
 
   return (
     <section className="flex flex-col gap-3">

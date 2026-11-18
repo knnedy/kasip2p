@@ -49,7 +49,7 @@ function etaFor(t: { totalBytes: number; transferredBytes: number; speedMBps: nu
 }
 
 const iconButton =
-  "flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground";
+  "press flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground";
 
 function ActiveTransfer({
   t,
@@ -70,7 +70,7 @@ function ActiveTransfer({
         : [formatSpeed(t.speedMBps), etaFor(t) && `${etaFor(t)} left`].filter(Boolean).join(" · ");
 
   return (
-    <li className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+    <li className="enter flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
       <div className="flex items-center gap-3">
         <span
           className={cn(
@@ -109,7 +109,8 @@ function ActiveTransfer({
         {/* fill is coloured by the sending end */}
         <div
           className={cn(
-            "h-full origin-left rounded-full transition-transform duration-300 ease-out-strong",
+            // linear: steady progress, retargeted every ~100ms update
+            "h-full origin-left rounded-full transition-transform duration-200 ease-linear",
             sending ? "bg-you" : "bg-them",
             t.pausedBy && "opacity-50",
           )}
@@ -271,14 +272,14 @@ export default function TransferPage() {
             <button
               type="button"
               onClick={pickFiles}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-you px-5 font-medium text-background">
+              className="press inline-flex min-h-11 items-center gap-2 rounded-full bg-you px-5 font-medium text-background">
               <Plus className="size-4" />
               Choose files
             </button>
             <button
               type="button"
               onClick={() => folderInputRef.current?.click()}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-5 font-medium text-foreground transition-colors hover:bg-muted">
+              className="press inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-5 font-medium text-foreground hover:bg-muted">
               <FolderUp className="size-4" />
               Choose a folder
             </button>
@@ -288,7 +289,7 @@ export default function TransferPage() {
         <button
           type="button"
           onClick={pickFiles}
-          className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-you text-lg font-medium text-background">
+          className="press inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-you text-lg font-medium text-background">
           <Plus className="size-5" />
           Choose files
         </button>

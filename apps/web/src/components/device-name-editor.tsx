@@ -40,7 +40,7 @@ export function DeviceNameEditor() {
           type="button"
           onClick={() => setDraft(name)}
           aria-label="Rename this device"
-          className="rounded-md p-1 transition-colors hover:text-foreground"
+          className="press rounded-md p-1 hover:text-foreground"
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
@@ -77,7 +77,7 @@ export function DeviceNameEditor() {
         <button
           type="submit"
           aria-label="Save name"
-          className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+          className="press rounded-md p-1 text-muted-foreground hover:text-foreground"
         >
           <Check className="h-3.5 w-3.5" />
         </button>
@@ -85,7 +85,7 @@ export function DeviceNameEditor() {
           type="button"
           onClick={cancel}
           aria-label="Cancel rename"
-          className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+          className="press rounded-md p-1 text-muted-foreground hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" />
         </button>

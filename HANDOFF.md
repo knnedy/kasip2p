@@ -27,7 +27,7 @@ Current: Stage 4 (UI/UX) on `feat/stage4-polish`.
 - [x] 25. feat(web): redesign home around nearby devices
 - [x] 26. feat(web): redesign pairing
 - [x] 27. feat(web): redesign the transfer page around the wire
-- [ ] 28. style(web): motion pass with reduced-motion support
+- [x] 28. style(web): motion pass with reduced-motion support
 - [ ] 29. fix(web): accessibility pass, then merge (before/after screenshots)
 
 ## Stage 3 decisions
@@ -78,12 +78,11 @@ Current: Stage 4 (UI/UX) on `feat/stage4-polish`.
 
 ## Next 3 steps
 
-1. style(web): motion pass with reduced-motion support
-2. fix(web): accessibility pass, then merge (before/after screenshots)
+1. fix(web): accessibility pass, then merge (before/after screenshots)
 
 ## Half-done files
 
-- all screens redesigned; motion pass and a11y pass next; pinned phone slowdown; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
+- accessibility pass + before/after screenshots + merge next; components/ui/button.tsx is unused shadcn code; pinned phone slowdown; on Render: set ALLOWED_ORIGINS, verify TRUST_PROXY/XFF
 
 ## Stage 2 (done, merged)
 

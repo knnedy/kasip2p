@@ -30,12 +30,12 @@ export function PairRequestModal({ incoming, onDismiss }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={handleReject} />
+      <div className="fade-enter absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={handleReject} />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="pair-request-title"
-        className="relative flex w-full max-w-sm flex-col gap-6 rounded-3xl border border-border bg-card p-6 shadow-2xl shadow-black/50">
+        className="sheet-enter relative flex w-full max-w-sm flex-col gap-6 rounded-3xl border border-border bg-card p-6 shadow-2xl shadow-black/50">
         <div className="flex items-center gap-4">
           <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-them/12 text-them">
             {incoming.fromMeta && <OsIcon os={incoming.fromMeta.os} size={22} />}
@@ -56,13 +56,13 @@ export function PairRequestModal({ incoming, onDismiss }: Props) {
             type="button"
             onClick={handleAccept}
             autoFocus
-            className="min-h-12 rounded-full bg-you font-medium text-background">
+            className="press min-h-12 rounded-full bg-you font-medium text-background">
             Accept
           </button>
           <button
             type="button"
             onClick={handleReject}
-            className="min-h-12 rounded-full border border-border font-medium text-foreground transition-colors hover:bg-muted">
+            className="press min-h-12 rounded-full border border-border font-medium text-foreground hover:bg-muted">
             Decline
           </button>
         </div>

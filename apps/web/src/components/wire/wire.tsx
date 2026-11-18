@@ -97,7 +97,7 @@ export function Wire({
             strokeWidth={2}
             strokeLinecap="round"
             strokeDasharray={`${pct} 100`}
-            className="transition-[stroke-dasharray] duration-500 ease-out-strong"
+            className="transition-[stroke-dasharray] duration-200 ease-linear"
           />
         )}
         {/* bursts: the only ambient motion; hidden under reduced motion */}

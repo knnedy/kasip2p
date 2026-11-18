@@ -177,7 +177,7 @@ export default function PairPage() {
             <button
               type="button"
               onClick={handleReject}
-              className="min-h-11 self-center rounded-full px-4 text-sm text-muted-foreground transition-colors hover:text-destructive">
+              className="press min-h-11 self-center rounded-full px-4 text-sm text-muted-foreground hover:text-destructive">
               Don&apos;t pair
             </button>
           </>
@@ -224,7 +224,7 @@ export default function PairPage() {
                 type="button"
                 onClick={handlePinSubmit}
                 disabled={enteredPin.length !== PIN_LENGTH || state.status === "verifying"}
-                className="min-h-12 rounded-full bg-you font-medium text-background transition-opacity disabled:opacity-40">
+                className="press min-h-12 rounded-full bg-you font-medium text-background disabled:opacity-40">
                 {state.status === "verifying" ? "Checking…" : "Pair devices"}
               </button>
             </div>
@@ -242,13 +242,13 @@ export default function PairPage() {
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="min-h-11 flex-1 rounded-full bg-you font-medium text-background">
+                className="press min-h-11 flex-1 rounded-full bg-you font-medium text-background">
                 Try again
               </button>
               <button
                 type="button"
                 onClick={() => router.push("/")}
-                className="min-h-11 flex-1 rounded-full border border-border font-medium text-foreground transition-colors hover:bg-muted">
+                className="press min-h-11 flex-1 rounded-full border border-border font-medium text-foreground hover:bg-muted">
                 Back to devices
               </button>
             </div>
